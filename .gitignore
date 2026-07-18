@@ -138,6 +138,35 @@ dist
 !.yarn/versions
 
 # Vite files
+.vite
+
+# Cloudflare Workers
+.wrangler/
+**/dist-probe/
+**/.dev.vars
+**/.dev.vars.*
+!**/.dev.vars.example
+
+# Local secrets and credentials
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+credentials.local.json
+secrets.local.json
+*.secret.local
+
+# Test artifacts
+playwright-report/
+test-results/
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Codex
+.codex/
+
+# Protoptype files
+gdufs-jwxt-next-origin/

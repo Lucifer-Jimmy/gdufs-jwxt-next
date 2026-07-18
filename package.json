@@ -1,0 +1,27 @@
+{
+  "name": "gdufs-jwxt-next",
+  "private": true,
+  "packageManager": "pnpm@11.1.2",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "pnpm --filter @gdufs-jwxt/frontend build && pnpm --filter @gdufs-jwxt/backend build",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
+    "dev": "pnpm --filter @gdufs-jwxt/frontend build && pnpm --filter @gdufs-jwxt/backend dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "eslint": "^9.32.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.3.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.38.0"
+  }
+}

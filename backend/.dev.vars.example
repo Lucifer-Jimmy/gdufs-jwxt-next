@@ -1,0 +1,6 @@
+# Copy to .dev.vars and provide independent local-only secrets in later phases.
+SESSION_AEAD_KEY_V1=
+RATE_LIMIT_HMAC_KEY_V1=
+
+# Only used with wrangler.probe.jsonc; generate a temporary random value.
+PROBE_TOKEN=

@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gdufs-jwxt-next-upstream-probe",
+  "main": "src/probe.ts",
+  "compatibility_date": "2026-07-18",
+  "vars": {
+    "PROBE_ENABLED": "true",
+  },
+  "observability": {
+    "enabled": false,
+  },
+}
