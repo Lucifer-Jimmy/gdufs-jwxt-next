@@ -1,0 +1,64 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  gradeDetailRequestSchema,
+  gradesResponseSchema,
+  loginRequestSchema,
+  mfaVerifyRequestSchema,
+  personalInfoSchema,
+} from "../src/schemas/api";
+
+describe("API v1 schemas", () => {
+  it("accepts the named resource contracts", () => {
+    expect(
+      personalInfoSchema.parse({
+        studentId: "20210001",
+        name: "脱敏姓名",
+        college: "信息科学与技术学院",
+        major: "软件工程",
+      }),
+    ).toBeTruthy();
+    expect(
+      gradesResponseSchema.parse({
+        grades: [
+          {
+            courseCode: "MATH-1",
+            courseName: "高等数学",
+            semester: "2025-2026-1",
+            credits: 4,
+            score: "优秀",
+            numericScore: null,
+            gradePoint: 4.5,
+            courseNature: "必修",
+            courseAttribute: "专业课",
+            detailKey: {
+              studentKey: "student-fixture",
+              teachingClassKey: "class-fixture",
+              gradeRecordKey: "grade-fixture",
+              totalScore: "优秀",
+            },
+          },
+        ],
+        reachedPageLimit: false,
+      }),
+    ).toBeTruthy();
+  });
+
+  it("bounds credentials, MFA codes and detail identifiers", () => {
+    expect(
+      loginRequestSchema.safeParse({ username: "", password: "secret" })
+        .success,
+    ).toBe(false);
+    expect(mfaVerifyRequestSchema.safeParse({ code: "12ab" }).success).toBe(
+      false,
+    );
+    expect(
+      gradeDetailRequestSchema.safeParse({
+        studentKey: "student-fixture",
+        teachingClassKey: "class-fixture",
+        gradeRecordKey: "grade-fixture",
+        totalScore: "x".repeat(65),
+      }).success,
+    ).toBe(false);
+  });
+});

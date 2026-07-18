@@ -1,7 +1,5 @@
 import { Hono } from "hono";
 
-import type { Bindings } from "../env";
-
 interface ApiVariables {
   requestId: string;
 }

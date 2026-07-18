@@ -37,27 +37,6 @@ export async function encryptUpstreamPassword(
   return `${toBase64Url(iv.buffer)}.${toBase64Url(ciphertext)}`;
 }
 
-export async function sealRuntimeFixture(
-  fixture: unknown,
-  rawKey: Uint8Array<ArrayBuffer>,
-): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    rawKey,
-    { name: "AES-GCM" },
-    false,
-    ["encrypt"],
-  );
-  const iv = secureRandomBytes(12);
-  const ciphertext = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv, additionalData: encodeUtf8("runtime-probe:v1") },
-    key,
-    encodeUtf8(JSON.stringify(fixture)),
-  );
-
-  return `v1.${toBase64Url(iv.buffer)}.${toBase64Url(ciphertext)}`;
-}
-
 function secureRandomBytes(length: number): Uint8Array<ArrayBuffer> {
   return crypto.getRandomValues(new Uint8Array(length));
 }

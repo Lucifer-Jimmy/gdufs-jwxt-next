@@ -168,5 +168,8 @@ vite.config.ts.timestamp-*
 # Codex
 .codex/
 
+# macOS metadata
+.DS_Store
+
 # Protoptype files
 gdufs-jwxt-next-origin/

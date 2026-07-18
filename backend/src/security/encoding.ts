@@ -17,3 +17,27 @@ export function toBase64Url(value: ArrayBuffer): string {
     .replaceAll("/", "_")
     .replace(/=+$/u, "");
 }
+
+export function fromBase64Url(value: string): Uint8Array<ArrayBuffer> {
+  if (!/^[A-Za-z0-9_-]*$/u.test(value)) {
+    throw new Error("Invalid base64url value");
+  }
+
+  const paddingLength = (4 - (value.length % 4)) % 4;
+  const base64 =
+    value.replaceAll("-", "+").replaceAll("_", "/") + "=".repeat(paddingLength);
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return bytes;
+}
+
+export function decodeUtf8(value: ArrayBuffer): string {
+  return new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(
+    value,
+  );
+}

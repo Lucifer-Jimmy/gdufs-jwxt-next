@@ -1,8 +1,6 @@
-import type { Bindings } from "../src/env";
-
 declare global {
   namespace Cloudflare {
-    // Declaration merging requires an interface for the test runtime environment.
+    // The Workers test pool requires declaration merging with its Env interface.
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     interface Env extends Bindings {}
   }

@@ -1,12 +1,9 @@
-import type { Bindings } from "../env";
+import { DurableObject } from "cloudflare:workers";
 
-export class RateLimitShard implements DurableObject {
-  private readonly state: DurableObjectState;
-
+export class RateLimitShard extends DurableObject<Bindings> {
   constructor(state: DurableObjectState, env: Bindings) {
-    void env;
-    this.state = state;
-    this.state.storage.sql.exec(`
+    super(state, env);
+    this.ctx.storage.sql.exec(`
       CREATE TABLE IF NOT EXISTS runtime_probe (
         probe_key TEXT PRIMARY KEY,
         checked_at INTEGER NOT NULL
@@ -14,7 +11,7 @@ export class RateLimitShard implements DurableObject {
     `);
   }
 
-  fetch(request: Request): Response {
+  override fetch(request: Request): Response {
     const url = new URL(request.url);
 
     if (request.method !== "POST" || url.pathname !== "/__runtime-probe") {
@@ -22,12 +19,12 @@ export class RateLimitShard implements DurableObject {
     }
 
     const checkedAt = Date.now();
-    this.state.storage.sql.exec(
+    this.ctx.storage.sql.exec(
       `INSERT OR REPLACE INTO runtime_probe (probe_key, checked_at) VALUES (?, ?)`,
       "sqlite",
       checkedAt,
     );
-    const row = this.state.storage.sql
+    const row = this.ctx.storage.sql
       .exec<{ checked_at: number }>(
         `SELECT checked_at FROM runtime_probe WHERE probe_key = ?`,
         "sqlite",

@@ -7,6 +7,8 @@
     "build": "wrangler deploy --dry-run --outdir dist",
     "dev": "wrangler dev",
     "test": "vitest run",
+    "types:bindings": "wrangler types src/worker-configuration.d.ts --env-interface Bindings --include-runtime false",
+    "types:bindings:check": "wrangler types src/worker-configuration.d.ts --env-interface Bindings --include-runtime false --check",
     "typecheck": "tsc --noEmit --pretty false"
   },
   "dependencies": {

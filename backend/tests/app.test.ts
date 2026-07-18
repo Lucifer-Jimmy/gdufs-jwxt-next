@@ -8,10 +8,9 @@ import {
   measureUtf8Bytes,
   serializeStateCookie,
 } from "../src/session/cookie-budget";
-import {
-  encryptUpstreamPassword,
-  sealRuntimeFixture,
-} from "../src/security/runtime-crypto";
+import { encryptUpstreamPassword } from "../src/security/runtime-crypto";
+import { openState, sealState } from "../src/session/encrypted-state";
+import { z } from "zod";
 import { apiErrorSchema, healthResponseSchema } from "../src/schemas/api";
 import { loginSessionFixture, mfaSessionFixture } from "./fixtures/session";
 
@@ -58,25 +57,59 @@ describe("Worker runtime feasibility", () => {
       "0123456789abcdef",
       deterministicRandom,
     );
-    const sessionCiphertext = await sealRuntimeFixture(
-      loginSessionFixture,
-      new Uint8Array(32).fill(7),
-    );
+    const keyring = {
+      current: { version: "1", key: new Uint8Array(32).fill(7) },
+    };
+    const sessionCiphertext = await sealState({
+      purpose: "login",
+      payload: loginSessionFixture,
+      now: 1_800_000_000,
+      idleTtlSeconds: 7_200,
+      absoluteTtlSeconds: 28_800,
+      keyring,
+    });
 
     expect(upstreamCiphertext.split(".")).toHaveLength(2);
-    expect(sessionCiphertext).toMatch(/^v1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u);
+    expect(sessionCiphertext).toMatch(
+      /^v1\.1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u,
+    );
+    await expect(
+      openState(
+        sessionCiphertext,
+        "login",
+        z.object({ accountHash: z.string() }).passthrough(),
+        keyring,
+        1_800_000_001,
+      ),
+    ).resolves.toMatchObject({ status: "valid" });
   });
 
   it("keeps encrypted fixtures inside the cookie budget", async () => {
-    const key = new Uint8Array(32).fill(9);
+    const keyring = {
+      current: { version: "1", key: new Uint8Array(32).fill(9) },
+    };
     const mfaCookie = serializeStateCookie(
       "__Host-jwxt_mfa",
-      await sealRuntimeFixture(mfaSessionFixture, key),
+      await sealState({
+        purpose: "mfa",
+        payload: mfaSessionFixture,
+        now: 1_800_000_000,
+        idleTtlSeconds: 600,
+        absoluteTtlSeconds: 600,
+        keyring,
+      }),
       600,
     );
     const loginCookie = serializeStateCookie(
       "__Host-jwxt_session",
-      await sealRuntimeFixture(loginSessionFixture, key),
+      await sealState({
+        purpose: "login",
+        payload: loginSessionFixture,
+        now: 1_800_000_000,
+        idleTtlSeconds: 7_200,
+        absoluteTtlSeconds: 28_800,
+        keyring,
+      }),
       7_200,
     );
 
@@ -85,6 +118,12 @@ describe("Worker runtime feasibility", () => {
     expect(measureUtf8Bytes(`${mfaCookie}; ${loginCookie}`)).toBeLessThan(
       TARGET_COOKIE_HEADER_BYTES,
     );
+  });
+
+  it("rejects a state cookie that exceeds the byte budget", () => {
+    expect(() =>
+      serializeStateCookie("__Host-jwxt_session", "x".repeat(3_800), 7_200),
+    ).toThrow("exceeds the per-cookie byte budget");
   });
 
   it("reads and writes SQLite in a Durable Object", async () => {

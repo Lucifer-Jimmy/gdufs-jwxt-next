@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 
-import type { Bindings } from "./env";
+import { errorResponse } from "./errors/http-error";
 import { RateLimitShard } from "./rate-limit/rate-limit-shard";
 import { api } from "./routes/api";
 import { securityHeaders } from "./security/headers";
@@ -18,6 +18,7 @@ app.use("/api/*", async (context, next) => {
   context.header("Cache-Control", "no-store, private");
 });
 app.route("/api", api);
+app.onError((error, context) => errorResponse(context, error));
 app.all("/api/*", (context) =>
   context.json(
     {
