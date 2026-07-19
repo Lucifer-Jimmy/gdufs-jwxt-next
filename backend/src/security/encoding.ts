@@ -5,6 +5,13 @@ export function encodeUtf8(value: string): Uint8Array<ArrayBuffer> {
 }
 
 export function toBase64Url(value: ArrayBuffer): string {
+  return toBase64(value)
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/u, "");
+}
+
+export function toBase64(value: ArrayBuffer): string {
   const bytes = new Uint8Array(value);
   let binary = "";
 
@@ -12,10 +19,7 @@ export function toBase64Url(value: ArrayBuffer): string {
     binary += String.fromCharCode(byte);
   }
 
-  return btoa(binary)
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replace(/=+$/u, "");
+  return btoa(binary);
 }
 
 export function fromBase64Url(value: string): Uint8Array<ArrayBuffer> {
@@ -31,6 +35,10 @@ export function fromBase64Url(value: string): Uint8Array<ArrayBuffer> {
 
   for (let index = 0; index < binary.length; index += 1) {
     bytes[index] = binary.charCodeAt(index);
+  }
+
+  if (toBase64Url(bytes.buffer) !== value) {
+    throw new Error("Non-canonical base64url value");
   }
 
   return bytes;

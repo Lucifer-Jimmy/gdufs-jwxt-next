@@ -224,7 +224,8 @@ backend/.dev.vars.probe
 生产环境使用交互式命令写入 secret，避免值进入 Shell 历史：
 
 ```bash
-pnpm --filter @gdufs-jwxt/backend exec wrangler secret put SESSION_AEAD_KEY_V1
+pnpm --filter @gdufs-jwxt/backend exec wrangler secret put SESSION_AEAD_KEY
+pnpm --filter @gdufs-jwxt/backend exec wrangler secret put SESSION_AEAD_KEY_VERSION
 pnpm --filter @gdufs-jwxt/backend exec wrangler secret put RATE_LIMIT_HMAC_KEY_V1
 ```
 
@@ -235,12 +236,16 @@ pnpm --filter @gdufs-jwxt/backend exec wrangler secret list
 pnpm --filter @gdufs-jwxt/backend exec wrangler secret delete <SECRET_NAME>
 ```
 
-`secret list` 只应用于确认名称和环境，不应期望读回 secret 值。会话 AEAD 与限流 HMAC 必须使用独立密钥。
+`secret list` 只应用于确认名称和环境，不应期望读回 secret 值。key 使用 32 字节随机值的无 padding base64url 编码；会话 AEAD 与限流 HMAC 必须独立，运行时配置解析器会拒绝复用。会话硬轮换时必须在同一次部署中更新 key 与版本，旧 Cookie 立即失效；完整边界见 [安全配置与结构化日志](../security/configuration-and-logging.md)。
 
-修改 `backend/wrangler.jsonc` 的 bindings 或 vars 后，应重新生成或检查 Worker 类型。当前仓库尚未把生成类型作为唯一来源，在切换前不得覆盖现有 `backend/src/env.ts`：
+修改 `backend/wrangler.jsonc` 的 bindings 或 vars 后，应重新生成或检查 Worker 类型。当前仓库以 `backend/src/worker-configuration.d.ts` 为唯一 binding 类型来源，不得手写平行的 `Env` 或 `Bindings`：
 
 ```bash
-pnpm --filter @gdufs-jwxt/backend exec wrangler types
+cd backend
+WRANGLER_LOG_PATH=/tmp/gdufs-wrangler-types.log pnpm exec wrangler types \
+  src/worker-configuration.d.ts \
+  --env-interface Bindings \
+  --include-runtime false
 ```
 
 ## 7. 预览检查与部署

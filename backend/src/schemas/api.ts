@@ -12,14 +12,14 @@ export const loginRequestSchema = z
 
 export const loginResponseSchema = z.object({
   maskedPhone: boundedText(64),
-  mfaExpiresAt: z.string().datetime({ offset: true }),
+  mfaExpiresAt: z.iso.datetime({ offset: true }),
 });
 
 export const mfaStatusResponseSchema = z.object({
   maskedPhone: boundedText(64),
   codeSent: z.boolean(),
   retryAfterSeconds: z.number().int().nonnegative(),
-  expiresAt: z.string().datetime({ offset: true }),
+  expiresAt: z.iso.datetime({ offset: true }),
 });
 
 export const mfaSendRequestSchema = z.object({}).strict();
@@ -66,10 +66,10 @@ export const gradeSchema = z.object({
   courseCode: nullableText(64),
   courseName: boundedText(256),
   semester: nullableText(64),
-  credits: z.number().finite().nonnegative().nullable(),
+  credits: z.number().nonnegative().nullable(),
   score: nullableText(64),
-  numericScore: z.number().finite().min(0).max(100).nullable(),
-  gradePoint: z.number().finite().nonnegative().nullable(),
+  numericScore: z.number().min(0).max(100).nullable(),
+  gradePoint: z.number().nonnegative().nullable(),
   courseNature: nullableText(128),
   courseAttribute: nullableText(128),
   detailKey: gradeDetailKeySchema.nullable(),

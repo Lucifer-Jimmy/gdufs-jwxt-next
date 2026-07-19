@@ -57,19 +57,17 @@ describe("Worker runtime feasibility", () => {
       "0123456789abcdef",
       deterministicRandom,
     );
-    const keyring = {
-      current: { version: "1", key: new Uint8Array(32).fill(7) },
-    };
+    const sessionKey = { version: "1", key: new Uint8Array(32).fill(7) };
     const sessionCiphertext = await sealState({
       purpose: "login",
       payload: loginSessionFixture,
       now: 1_800_000_000,
       idleTtlSeconds: 7_200,
       absoluteTtlSeconds: 28_800,
-      keyring,
+      key: sessionKey,
     });
 
-    expect(upstreamCiphertext.split(".")).toHaveLength(2);
+    expect(upstreamCiphertext).toMatch(/^[A-Za-z0-9+/]+={0,2}$/u);
     expect(sessionCiphertext).toMatch(
       /^v1\.1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u,
     );
@@ -78,16 +76,14 @@ describe("Worker runtime feasibility", () => {
         sessionCiphertext,
         "login",
         z.object({ accountHash: z.string() }).passthrough(),
-        keyring,
+        sessionKey,
         1_800_000_001,
       ),
     ).resolves.toMatchObject({ status: "valid" });
   });
 
   it("keeps encrypted fixtures inside the cookie budget", async () => {
-    const keyring = {
-      current: { version: "1", key: new Uint8Array(32).fill(9) },
-    };
+    const sessionKey = { version: "1", key: new Uint8Array(32).fill(9) };
     const mfaCookie = serializeStateCookie(
       "__Host-jwxt_mfa",
       await sealState({
@@ -96,7 +92,7 @@ describe("Worker runtime feasibility", () => {
         now: 1_800_000_000,
         idleTtlSeconds: 600,
         absoluteTtlSeconds: 600,
-        keyring,
+        key: sessionKey,
       }),
       600,
     );
@@ -108,7 +104,7 @@ describe("Worker runtime feasibility", () => {
         now: 1_800_000_000,
         idleTtlSeconds: 7_200,
         absoluteTtlSeconds: 28_800,
-        keyring,
+        key: sessionKey,
       }),
       7_200,
     );
@@ -127,13 +123,20 @@ describe("Worker runtime feasibility", () => {
   });
 
   it("reads and writes SQLite in a Durable Object", async () => {
-    const id = env.RATE_LIMIT_SHARD.idFromName("runtime-probe-v1");
-    const stub = env.RATE_LIMIT_SHARD.get(id);
-    const response = await stub.fetch("https://rate-limit/__runtime-probe", {
-      method: "POST",
+    const stub = env.RATE_LIMIT_SHARD.getByName("runtime-probe-v1");
+    const decision = await stub.checkAndConsume({
+      subjectHash: "a".repeat(43),
+      rules: [
+        {
+          id: "grades_refresh_account",
+          limit: 1,
+          windowSeconds: 30,
+          retentionSeconds: 30,
+        },
+      ],
+      now: 1_800_000_000,
     });
 
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ sqlite: true });
+    expect(decision).toEqual({ allowed: true });
   });
 });

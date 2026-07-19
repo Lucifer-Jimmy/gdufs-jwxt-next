@@ -93,11 +93,12 @@ gdufs-jwxt-next/
 
 ### 契约与错误
 
-| 文件                                 | 用途                                                 |
-| ------------------------------------ | ---------------------------------------------------- |
-| `backend/src/schemas/api.ts`         | `/api/v1` 请求、响应和资源的 Zod schema 及推导类型。 |
-| `backend/src/errors/domain-error.ts` | 可判别领域错误码、HTTP 状态和可选重试时间。          |
-| `backend/src/errors/http-error.ts`   | 把领域错误映射为固定 JSON；未知异常隐藏内部细节。    |
+| 文件                                    | 用途                                                      |
+| --------------------------------------- | --------------------------------------------------------- |
+| `backend/src/schemas/api.ts`            | `/api/v1` 请求、响应和资源的 Zod schema 及推导类型。      |
+| `backend/src/errors/domain-error.ts`    | 可判别领域错误码、HTTP 状态和可选重试时间。               |
+| `backend/src/errors/http-error.ts`      | 把领域错误映射为固定 JSON；未知异常隐藏内部细节。         |
+| `backend/src/config/security-config.ts` | 解析单会话密钥、版本和限流 secret，并拒绝跨用途密钥复用。 |
 
 ### 安全与会话
 
@@ -107,17 +108,27 @@ gdufs-jwxt-next/
 | `backend/src/security/headers.ts`        | CSP、Permissions Policy、Referrer Policy、nosniff 和 framing header。 |
 | `backend/src/security/request-id.ts`     | 校验或生成 API 请求 ID，并写入响应。                                  |
 | `backend/src/security/request-guards.ts` | 修改认证状态请求的 JSON Content-Type 与同源 Origin/Referer 检查。     |
+| `backend/src/security/safe-logger.ts`    | 固定事件、阶段和错误码白名单的单行 JSON 安全日志。                    |
 | `backend/src/security/runtime-crypto.ts` | 学校统一认证密码协议需要的 AES-CBC 加密；不用于本应用会话。           |
-| `backend/src/session/encrypted-state.ts` | AES-GCM 客户端状态签发、解封、用途绑定、过期和密钥轮换。              |
+| `backend/src/session/encrypted-state.ts` | AES-GCM 客户端状态签发、解封、用途绑定、过期和硬轮换版本检查。        |
 | `backend/src/session/cookie-budget.ts`   | 状态 Cookie 序列化、读取、清除和字节预算检查。                        |
 
 ### 上游、解析与限流
 
-| 文件                                         | 用途                                                                 |
-| -------------------------------------------- | -------------------------------------------------------------------- |
-| `backend/src/parsers/auth-login-page.ts`     | 使用 `HTMLRewriter` 提取统一认证登录页的盐和 execution 字段。        |
-| `backend/src/services/upstream-probe.ts`     | 固定学校域名探测、逐跳重定向、临时 Cookie jar 和脱敏摘要。           |
-| `backend/src/rate-limit/rate-limit-shard.ts` | SQLite Durable Object；当前仅保留运行时探针，阶段 1 将实现正式限流。 |
+| 文件                                         | 用途                                                          |
+| -------------------------------------------- | ------------------------------------------------------------- |
+| `backend/src/parsers/auth-login-page.ts`     | 使用 `HTMLRewriter` 提取统一认证登录页的盐和 execution 字段。 |
+| `backend/src/parsers/auth-mfa-page.ts`       | 使用 `HTMLRewriter` 提取 MFA 页面脱敏手机号。                 |
+| `backend/src/services/authserver.ts`         | 统一认证登录页、密码提交、MFA 重定向和脱敏手机号服务。        |
+| `backend/src/services/upstream-probe.ts`     | 固定学校域名探测、逐跳重定向、临时 Cookie jar 和脱敏摘要。    |
+| `backend/src/upstream/constants.ts`          | 固定学校 URL、host/path 白名单和 User-Agent。                 |
+| `backend/src/upstream/cookie-jar.ts`         | 可序列化上游 Cookie 解析、scope 匹配、替换和过期。            |
+| `backend/src/upstream/client.ts`             | 超时、manual redirect、白名单验证和 Cookie 携带。             |
+| `backend/src/rate-limit/types.ts`            | 限流动作、规则、检查请求和判定结果类型。                      |
+| `backend/src/rate-limit/rules.ts`            | 已确认阈值和业务动作的多维限流策略目录。                      |
+| `backend/src/rate-limit/subject.ts`          | HMAC 主体摘要、分片版本和 16 分片映射。                       |
+| `backend/src/rate-limit/rate-limit-shard.ts` | SQLite Durable Object 原子计数、过期清理和指定动作清除。      |
+| `backend/src/rate-limit/rate-limiter.ts`     | Worker 侧多维策略执行、RPC 路由和 fail-closed 映射。          |
 
 业务服务不得依赖 Hono `Context`。未来认证和教务请求放在 `services/`，HTML/脚本解析放在 `parsers/`，路由只负责 HTTP 适配。
 
@@ -127,8 +138,13 @@ gdufs-jwxt-next/
 | ---------------------------------------- | ------------------------------------------------------------------------------ |
 | `backend/tests/app.test.ts`              | 正式 Worker 路由、header、Workers crypto、Cookie 预算和 SQLite DO 运行时测试。 |
 | `backend/tests/api-schema.test.ts`       | API schema 成功样例、格式和长度边界。                                          |
-| `backend/tests/encrypted-state.test.ts`  | AEAD 篡改、用途、轮换、闲置/绝对过期和续期测试。                               |
+| `backend/tests/encrypted-state.test.ts`  | AEAD 篡改、用途、硬轮换、闲置/绝对过期和续期测试。                             |
 | `backend/tests/request-security.test.ts` | Content-Type、同源、统一错误和 `Retry-After` 测试。                            |
+| `backend/tests/rate-limit.test.ts`       | HMAC 分片、固定窗口、SQLite 原子计数、并发和清理测试。                         |
+| `backend/tests/security-config.test.ts`  | Secret 格式、版本、硬轮换配置和跨用途密钥独立性测试。                          |
+| `backend/tests/safe-logger.test.ts`      | 结构化日志白名单、5xx 记录和敏感异常隔离测试。                                 |
+| `backend/tests/authserver.test.ts`       | CAS 密码向量、登录表单、Cookie 链和认证错误分类测试。                          |
+| `backend/tests/upstream-client.test.ts`  | URL 白名单、重定向和 Cookie jar scope/过期测试。                               |
 | `backend/tests/upstream-probe.test.ts`   | 上游探针重定向、Cookie 脱敏、超时和白名单测试。                                |
 | `backend/tests/fixtures/session.ts`      | 结构等价且完全脱敏的 MFA/登录状态 fixture。                                    |
 | `backend/tests/env.d.ts`                 | 将 Wrangler 生成的 `Bindings` 合并进 Workers 测试环境。                        |
@@ -146,7 +162,10 @@ gdufs-jwxt-next/
 | `docs/development/typescript-local-development.md` | TypeScript 环境、类型检查、前后端启动、联调和调试。     |
 | `docs/testing/unit-testing.md`                     | 测试分层、Workers Vitest、fixture、单元测试写法和排错。 |
 | `docs/api/v1-contract.md`                          | `/api/v1` 通用约定、资源 schema 和成绩详情边界。        |
-| `docs/security/client-state.md`                    | AES-GCM 客户端状态、Cookie 预算、轮换和请求安全。       |
+| `docs/authentication/authserver.md`                | 统一认证登录页、CAS 密码、Cookie jar 和 MFA 准备流程。  |
+| `docs/security/client-state.md`                    | AES-GCM 客户端状态、Cookie 预算、硬轮换和请求安全。     |
+| `docs/security/rate-limiting.md`                   | HMAC 16 分片、SQLite DO 原子限流、规则和故障语义。      |
+| `docs/security/configuration-and-logging.md`       | Secret 解析、密钥硬轮换和结构化日志白名单。             |
 | `docs/cloudflare/wrangler-development.md`          | Wrangler 登录、本地/远程运行、探针、secret 和部署。     |
 
 以下目录只用于本地运行，不属于项目源文件：

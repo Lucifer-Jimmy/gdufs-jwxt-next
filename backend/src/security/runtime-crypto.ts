@@ -1,4 +1,4 @@
-import { encodeUtf8, toBase64Url } from "./encoding";
+import { encodeUtf8, toBase64 } from "./encoding";
 
 const AES_BLOCK_BYTES = 16;
 const LOGIN_RANDOM_PREFIX_BYTES = 64;
@@ -34,7 +34,7 @@ export async function encryptUpstreamPassword(
     plaintext,
   );
 
-  return `${toBase64Url(iv.buffer)}.${toBase64Url(ciphertext)}`;
+  return toBase64(ciphertext);
 }
 
 function secureRandomBytes(length: number): Uint8Array<ArrayBuffer> {

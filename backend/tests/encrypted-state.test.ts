@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import { fromBase64Url } from "../src/security/encoding";
 import {
   openState,
   renewLoginState,
   sealState,
-  type StateKeyring,
 } from "../src/session/encrypted-state";
 
 const payloadSchema = z.object({
@@ -14,8 +14,7 @@ const payloadSchema = z.object({
 });
 
 const currentKey = { version: "2", key: new Uint8Array(32).fill(2) };
-const previousKey = { version: "1", key: new Uint8Array(32).fill(1) };
-const keyring: StateKeyring = { current: currentKey, previous: previousKey };
+const oldKey = { version: "1", key: new Uint8Array(32).fill(1) };
 const now = 1_800_000_000;
 
 describe("encrypted client state", () => {
@@ -29,20 +28,19 @@ describe("encrypted client state", () => {
       now,
       idleTtlSeconds: 600,
       absoluteTtlSeconds: 600,
-      keyring,
+      key: currentKey,
     });
 
     const opened = await openState(
       token,
       "mfa",
       payloadSchema,
-      keyring,
+      currentKey,
       now + 30,
     );
 
     expect(opened).toMatchObject({
       status: "valid",
-      needsRotation: false,
       claims: {
         purpose: "mfa",
         issuedAt: now,
@@ -60,49 +58,48 @@ describe("encrypted client state", () => {
       now,
       idleTtlSeconds: 600,
       absoluteTtlSeconds: 600,
-      keyring,
+      key: currentKey,
     });
     const tampered = `${token.slice(0, -1)}${token.endsWith("A") ? "B" : "A"}`;
 
     await expect(
-      openState(tampered, "mfa", payloadSchema, keyring, now),
+      openState(tampered, "mfa", payloadSchema, currentKey, now),
     ).resolves.toEqual({
       status: "invalid",
     });
     await expect(
-      openState(token, "login", payloadSchema, keyring, now),
+      openState(token, "login", payloadSchema, currentKey, now),
     ).resolves.toEqual({
       status: "invalid",
     });
     await expect(
-      openState(token, "mfa", z.object({ flowId: z.number() }), keyring, now),
+      openState(
+        token,
+        "mfa",
+        z.object({ flowId: z.number() }),
+        currentKey,
+        now,
+      ),
     ).resolves.toEqual({ status: "invalid" });
   });
 
-  it("accepts only the previous key for rotation", async () => {
+  it("rejects non-canonical base64url encodings", () => {
+    expect(fromBase64Url("Zg")).toEqual(new Uint8Array([102]));
+    expect(() => fromBase64Url("Zh")).toThrow("Non-canonical base64url value");
+  });
+
+  it("invalidates old cookies after a hard key rotation", async () => {
     const token = await sealState({
       purpose: "login",
       payload: { flowId: "fixture-flow", upstreamCookies: [] },
       now,
       idleTtlSeconds: 7_200,
       absoluteTtlSeconds: 28_800,
-      keyring: { current: previousKey },
+      key: oldKey,
     });
 
     await expect(
-      openState(token, "login", payloadSchema, keyring, now + 1),
-    ).resolves.toMatchObject({
-      status: "valid",
-      needsRotation: true,
-    });
-    await expect(
-      openState(
-        token,
-        "login",
-        payloadSchema,
-        { current: currentKey },
-        now + 1,
-      ),
+      openState(token, "login", payloadSchema, currentKey, now + 1),
     ).resolves.toEqual({ status: "invalid" });
   });
 
@@ -113,16 +110,16 @@ describe("encrypted client state", () => {
       now,
       idleTtlSeconds: 100,
       absoluteTtlSeconds: 500,
-      keyring,
+      key: currentKey,
     });
 
     await expect(
-      openState(token, "login", payloadSchema, keyring, now + 99),
+      openState(token, "login", payloadSchema, currentKey, now + 99),
     ).resolves.toMatchObject({
       status: "valid",
     });
     await expect(
-      openState(token, "login", payloadSchema, keyring, now + 100),
+      openState(token, "login", payloadSchema, currentKey, now + 100),
     ).resolves.toEqual({
       status: "expired",
     });
@@ -135,13 +132,13 @@ describe("encrypted client state", () => {
       now,
       idleTtlSeconds: 100,
       absoluteTtlSeconds: 500,
-      keyring,
+      key: currentKey,
     });
     const opened = await openState(
       token,
       "login",
       payloadSchema,
-      keyring,
+      currentKey,
       now + 50,
     );
     expect(opened.status).toBe("valid");
@@ -152,7 +149,7 @@ describe("encrypted client state", () => {
     const renewed = await renewLoginState(
       opened.claims,
       600,
-      keyring,
+      currentKey,
       now + 50,
     );
     expect(renewed).toBeDefined();
@@ -163,7 +160,7 @@ describe("encrypted client state", () => {
       renewed,
       "login",
       payloadSchema,
-      keyring,
+      currentKey,
       now + 499,
     );
 
@@ -172,7 +169,7 @@ describe("encrypted client state", () => {
       claims: { lastActivityAt: now + 50, expiresAt: now + 500 },
     });
     await expect(
-      openState(renewed, "login", payloadSchema, keyring, now + 500),
+      openState(renewed, "login", payloadSchema, currentKey, now + 500),
     ).resolves.toEqual({
       status: "expired",
     });

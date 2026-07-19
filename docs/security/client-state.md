@@ -1,6 +1,6 @@
 # 加密客户端状态与请求安全
 
-本文档说明 MFA 临时状态和正式登录状态的客户端 Cookie 封装、安全请求边界与密钥轮换方式。Worker 不保存认证状态副本，Durable Objects 也不得用于会话。
+本文档说明 MFA 临时状态和正式登录状态的客户端 Cookie 封装、安全请求边界与单密钥硬轮换方式。Worker 不保存认证状态副本，Durable Objects 也不得用于会话。
 
 ## 1. 状态格式
 
@@ -59,17 +59,24 @@ const renewedClaims: SessionClaims<T> = {
 
 当前结构等价脱敏 fixture 在 Workers 测试运行时内加密后满足预算。若真实上游 Cookie 超限，应先最小化字段，再按 `AGENTS.md` 第 8.1 节设计完整性受保护的固定编号分片；不得转存到 Web Storage、KV、数据库或 Durable Objects。
 
-## 4. 密钥轮换
+## 4. 单密钥硬轮换
 
-keyring 最多接收当前和上一版本密钥：
+任意时刻只接受一把会话密钥：
 
-- 签发和续期只使用当前版本；
-- 解封可接受当前或上一版本；
-- 使用上一版本解封成功时返回 `needsRotation: true`，路由可在成功响应时重新签发；
-- 版本必须唯一且只含安全短字符，每把 AES 密钥必须正好 32 字节；
-- 轮换窗口结束后删除上一版本 secret。
+- `SESSION_AEAD_KEY` 保存当前 32 字节 AES 密钥的 base64url 编码；
+- `SESSION_AEAD_KEY_VERSION` 保存 1–32 字符的安全版本号；
+- 签发、续期和解封全部使用该唯一密钥；
+- token 中的版本与当前配置不一致时直接返回 `invalid`，不查找旧密钥。
 
-生产密钥通过 `SESSION_AEAD_KEY_V<n>` Cloudflare secret 注入。解析 secret 到 32 字节 keyring 的配置适配器将在认证路由接入时实现，并必须拒绝缺失、重复版本或错误长度。
+核心版本检查位于 `backend/src/session/encrypted-state.ts`：
+
+```ts
+if (key.version !== keyVersion) {
+  return { status: "invalid" };
+}
+```
+
+项目不做定期自动轮换，也不保留上一密钥进行无感迁移。怀疑泄露、权限人员变化或运行环境暴露时，生成新密钥、增加版本并在一次部署中同时更新；所有旧 Cookie 立即失效，用户重新登录。代码回滚不能恢复旧密钥，否则会重新接受已作废 Cookie。
 
 ## 5. 请求与错误边界
 
@@ -101,4 +108,4 @@ pnpm --filter @gdufs-jwxt/backend typecheck
 pnpm --filter @gdufs-jwxt/backend test
 ```
 
-会话测试覆盖有效往返、篡改、用途错配、payload 校验、旧密钥轮换、闲置边界、绝对边界和续期上限；Worker 运行时测试同时验证 AES-CBC 上游兼容逻辑、正式 AES-GCM 解封以及 Cookie 字节预算。
+会话测试覆盖有效往返、篡改、用途错配、payload 校验、硬轮换后旧 Cookie 失效、闲置边界、绝对边界和续期上限；Worker 运行时测试同时验证 AES-CBC 运行能力、正式 AES-GCM 解封以及 Cookie 字节预算。

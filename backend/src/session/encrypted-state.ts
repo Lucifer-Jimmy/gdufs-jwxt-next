@@ -17,11 +17,6 @@ export interface StateKey {
   key: Uint8Array<ArrayBuffer>;
 }
 
-export interface StateKeyring {
-  current: StateKey;
-  previous?: StateKey;
-}
-
 export interface SessionClaims<T> {
   version: 1;
   purpose: StatePurpose;
@@ -33,7 +28,7 @@ export interface SessionClaims<T> {
 }
 
 export type OpenStateResult<T> =
-  | { status: "valid"; claims: SessionClaims<T>; needsRotation: boolean }
+  | { status: "valid"; claims: SessionClaims<T> }
   | { status: "expired" }
   | { status: "invalid" };
 
@@ -43,7 +38,7 @@ interface SealStateOptions<T> {
   now: number;
   idleTtlSeconds: number;
   absoluteTtlSeconds: number;
-  keyring: StateKeyring;
+  key: StateKey;
 }
 
 const claimsSchema = z.object({
@@ -59,7 +54,7 @@ const claimsSchema = z.object({
 export async function sealState<T>(
   options: SealStateOptions<T>,
 ): Promise<string> {
-  validateKeyring(options.keyring);
+  validateKey(options.key);
   const idleExpiresAt = options.now + options.idleTtlSeconds;
   const absoluteExpiresAt = options.now + options.absoluteTtlSeconds;
   const claims: SessionClaims<T> = {
@@ -72,18 +67,18 @@ export async function sealState<T>(
     payload: options.payload,
   };
 
-  return encryptClaims(claims, options.keyring.current);
+  return encryptClaims(claims, options.key);
 }
 
 export async function openState<T>(
   token: string,
   purpose: StatePurpose,
   payloadSchema: z.ZodType<T>,
-  keyring: StateKeyring,
+  key: StateKey,
   now: number,
 ): Promise<OpenStateResult<T>> {
   try {
-    validateKeyring(keyring);
+    validateKey(key);
     const parts = token.split(".");
     if (parts.length !== 4 || parts[0] !== FORMAT_VERSION) {
       return { status: "invalid" };
@@ -100,8 +95,7 @@ export async function openState<T>(
       return { status: "invalid" };
     }
 
-    const key = selectKey(keyring, keyVersion);
-    if (key === undefined) {
+    if (key.version !== keyVersion) {
       return { status: "invalid" };
     }
 
@@ -141,7 +135,6 @@ export async function openState<T>(
     return {
       status: "valid",
       claims: { ...baseClaims.data, payload: payload.data },
-      needsRotation: key.version !== keyring.current.version,
     };
   } catch {
     return { status: "invalid" };
@@ -151,7 +144,7 @@ export async function openState<T>(
 export async function renewLoginState<T>(
   claims: SessionClaims<T>,
   idleTtlSeconds: number,
-  keyring: StateKeyring,
+  key: StateKey,
   now: number,
 ): Promise<string | undefined> {
   if (claims.purpose !== "login" || now >= claims.absoluteExpiresAt) {
@@ -163,7 +156,7 @@ export async function renewLoginState<T>(
     lastActivityAt: now,
     expiresAt: Math.min(now + idleTtlSeconds, claims.absoluteExpiresAt),
   };
-  return encryptClaims(renewedClaims, keyring.current);
+  return encryptClaims(renewedClaims, key);
 }
 
 async function encryptClaims<T>(
@@ -186,19 +179,6 @@ async function encryptClaims<T>(
   return `${FORMAT_VERSION}.${key.version}.${toBase64Url(iv.buffer)}.${toBase64Url(ciphertext)}`;
 }
 
-function selectKey(
-  keyring: StateKeyring,
-  version: string,
-): StateKey | undefined {
-  if (keyring.current.version === version) {
-    return keyring.current;
-  }
-  if (keyring.previous?.version === version) {
-    return keyring.previous;
-  }
-  return undefined;
-}
-
 async function importAeadKey(
   rawKey: Uint8Array<ArrayBuffer>,
   usages: ("decrypt" | "encrypt")[],
@@ -219,16 +199,6 @@ function additionalData(
   return encodeUtf8(
     `gdufs-jwxt-state:${FORMAT_VERSION}:${purpose}:${keyVersion}`,
   );
-}
-
-function validateKeyring(keyring: StateKeyring): void {
-  validateKey(keyring.current);
-  if (keyring.previous !== undefined) {
-    validateKey(keyring.previous);
-    if (keyring.previous.version === keyring.current.version) {
-      throw new Error("State key versions must be unique");
-    }
-  }
 }
 
 function validateKey(key: StateKey): void {

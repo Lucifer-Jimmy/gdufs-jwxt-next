@@ -62,7 +62,6 @@ const opened = await openState(token, "mfa", payloadSchema, keyring, now + 30);
 
 expect(opened).toMatchObject({
   status: "valid",
-  needsRotation: false,
 });
 ```
 
@@ -87,14 +86,15 @@ API 404 必须额外断言 `Content-Type` 是 JSON，防止请求错误落入 SP
 通过测试环境的 namespace 取得确定性实例：
 
 ```ts
-const id = env.RATE_LIMIT_SHARD.idFromName("runtime-probe-v1");
-const stub = env.RATE_LIMIT_SHARD.get(id);
-const response = await stub.fetch("https://rate-limit/__runtime-probe", {
-  method: "POST",
+const stub = env.RATE_LIMIT_SHARD.getByName("rate-limit-test");
+const decision = await stub.checkAndConsume({
+  subjectHash: "a".repeat(43),
+  rules: [RATE_LIMIT_RULES.gradesRefreshAccount],
+  now: 1_800_000_000,
 });
 ```
 
-正式限流实现后，测试必须覆盖同主体并发原子性、不同主体隔离、16 分片稳定映射、窗口边界、过期清理和默认拒绝故障语义。
+正式限流测试覆盖同主体并发原子性、不同主体隔离、16 分片稳定映射、窗口边界、过期清理和默认拒绝故障语义。
 
 ### 上游服务契约测试
 
