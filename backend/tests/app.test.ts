@@ -85,7 +85,7 @@ describe("Worker runtime feasibility", () => {
   it("keeps encrypted fixtures inside the cookie budget", async () => {
     const sessionKey = { version: "1", key: new Uint8Array(32).fill(9) };
     const mfaCookie = serializeStateCookie(
-      "__Host-jwxt_mfa",
+      "__Secure-jwxt_mfa",
       await sealState({
         purpose: "mfa",
         payload: mfaSessionFixture,
@@ -97,7 +97,7 @@ describe("Worker runtime feasibility", () => {
       600,
     );
     const loginCookie = serializeStateCookie(
-      "__Host-jwxt_session",
+      "__Secure-jwxt_session",
       await sealState({
         purpose: "login",
         payload: loginSessionFixture,
@@ -118,7 +118,7 @@ describe("Worker runtime feasibility", () => {
 
   it("rejects a state cookie that exceeds the byte budget", () => {
     expect(() =>
-      serializeStateCookie("__Host-jwxt_session", "x".repeat(3_800), 7_200),
+      serializeStateCookie("__Secure-jwxt_session", "x".repeat(3_800), 7_200),
     ).toThrow("exceeds the per-cookie byte budget");
   });
 

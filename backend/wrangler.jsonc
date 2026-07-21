@@ -26,4 +26,11 @@
   "observability": {
     "enabled": true,
   },
+  "secrets": {
+    "required": [
+      "SESSION_AEAD_KEY",
+      "SESSION_AEAD_KEY_VERSION",
+      "RATE_LIMIT_HMAC_KEY_V1",
+    ],
+  },
 }

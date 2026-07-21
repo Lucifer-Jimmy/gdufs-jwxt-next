@@ -18,10 +18,11 @@ export interface RateLimitCheck {
   subjectHash: string;
   rules: RateLimitRule[];
   now: number;
+  returnExhaustedAfterConsume?: boolean;
 }
 
 export type RateLimitDecision =
-  | { allowed: true }
+  | { allowed: true; exhaustedAfterConsume?: boolean }
   | {
       allowed: false;
       retryAfterSeconds: number;

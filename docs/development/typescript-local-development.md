@@ -60,14 +60,14 @@ pnpm --filter @gdufs-jwxt/backend typecheck
 pnpm --filter @gdufs-jwxt/frontend dev
 ```
 
-Vite 会输出本地 URL并提供 React Fast Refresh。浏览器 DevTools 用于：
+Vite 会输出本地 URL并提供 React Fast Refresh，并把 `/api/*` 代理到 `http://127.0.0.1:8787`。因此需要联调时应同时启动后端 Worker；只检查静态界面时，API 请求失败会由前端原位错误状态处理。浏览器 DevTools 用于：
 
 - `Sources`：查看带 sourcemap 的 `.tsx`，设置断点和检查调用栈；
 - `Network`：确认前端只请求相对路径 `/api/v1/...`，检查状态码、请求 ID和 `Cache-Control`；
 - `Application`：确认没有使用 Local Storage、Session Storage、IndexedDB 或 Cache API 保存个人数据；
 - `Console`：定位 React 错误，但不得打印账号、验证码、个人信息或成绩。
 
-目前 Vite 配置不代理 API。需要真实同源 API 与 Cookie 行为时，使用下一节的单 Worker方式。
+Vite 代理只用于本地开发，不改变生产同源拓扑。需要验证 Static Assets fallback、Cookie、安全 header 和完整 Worker 行为时，仍应使用下一节的单 Worker 方式。
 
 ## 4. 单 Worker 联调
 

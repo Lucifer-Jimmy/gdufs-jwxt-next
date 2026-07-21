@@ -159,6 +159,13 @@ export async function renewLoginState<T>(
   return encryptClaims(renewedClaims, key);
 }
 
+export function resealStateClaims<T>(
+  claims: SessionClaims<T>,
+  key: StateKey,
+): Promise<string> {
+  return encryptClaims(claims, key);
+}
+
 async function encryptClaims<T>(
   claims: SessionClaims<T>,
   key: StateKey,

@@ -73,7 +73,13 @@ export class RateLimitShard extends DurableObject<Bindings> {
         );
       }
 
-      return { allowed: true };
+      const exhaustedAfterConsume =
+        check.returnExhaustedAfterConsume === true &&
+        pending.some(({ rule, count }) => count + 1 >= rule.limit);
+
+      return exhaustedAfterConsume
+        ? { allowed: true, exhaustedAfterConsume: true }
+        : { allowed: true };
     });
   }
 
@@ -130,7 +136,9 @@ function validateCheck(check: RateLimitCheck): void {
   if (
     !Number.isSafeInteger(check.now) ||
     check.now < 0 ||
-    check.rules.length === 0
+    check.rules.length === 0 ||
+    (check.returnExhaustedAfterConsume !== undefined &&
+      typeof check.returnExhaustedAfterConsume !== "boolean")
   ) {
     throw new Error("Invalid rate-limit check");
   }

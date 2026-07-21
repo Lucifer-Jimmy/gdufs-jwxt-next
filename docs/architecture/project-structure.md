@@ -12,7 +12,7 @@ gdufs-jwxt-next/
 ├── gdufs-jwxt-next-origin/   只读旧后端迁移参考，Git 忽略
 ├── AGENTS.md                 最高层需求、架构与开发约束
 ├── PRODUCT.md                新项目产品定位和体验原则
-├── DESIGN.md                 新项目种子视觉系统
+├── DESIGN.md                 从阶段 3 前端实现提取的视觉系统
 └── workspace 配置            pnpm、TypeScript、ESLint、Prettier
 ```
 
@@ -35,7 +35,7 @@ gdufs-jwxt-next/
 | --------------------- | ---------------------------------------------------------------------------- |
 | `AGENTS.md`           | 本仓库开发的首要约束，记录确认需求、技术边界、安全规则、阶段门槛和文档规范。 |
 | `PRODUCT.md`          | 独立于旧项目的产品目标、用户任务与体验原则。                                 |
-| `DESIGN.md`           | 前端 seed 视觉系统；阶段 3 落地真实 token 后需由 `impeccable` 更新。         |
+| `DESIGN.md`           | 前端视觉系统的规范 token、组件规则和设计边界。                               |
 | `LICENSE`             | 项目许可证。                                                                 |
 | `.gitignore`          | 排除依赖、构建产物、Wrangler 状态、凭据、本地 secret 和旧参考项目。          |
 | `package.json`        | workspace 根命令、Node/pnpm 版本和共享代码质量依赖。                         |
@@ -56,16 +56,29 @@ gdufs-jwxt-next/
 
 ## 3. 前端目录
 
-当前前端仍是阶段 0 的最小运行门，阶段 3 才会建立 `components/`、`features/`、`routes/`、`lib/` 和完整样式体系。
+前端已实现完整用户流程：React Router 管理认证与应用页面，TanStack Query 管理内存请求状态，Zod 校验网络响应，Tailwind CSS 与仓库内 shadcn/ui 组件源码提供统一视觉和交互语义。Vite 开发服务器把 `/api` 代理到本地 Worker；生产仍由单 Worker 同源提供静态资源和 API。数据流、计算口径与降级策略见 [前端数据流与学业计算](../frontend/data-flow-and-academics.md)。
 
-| 文件                      | 用途                                                           |
-| ------------------------- | -------------------------------------------------------------- |
-| `frontend/package.json`   | 定义 React、Vite、前端构建与类型检查命令。                     |
-| `frontend/tsconfig.json`  | 浏览器 DOM、React JSX、Vite 类型和 composite TypeScript 配置。 |
-| `frontend/vite.config.ts` | Vite 配置入口，当前只启用 React 插件。                         |
-| `frontend/index.html`     | 浏览器 HTML 入口，提供 `#root` 和 `/src/main.tsx` 模块脚本。   |
-| `frontend/src/main.tsx`   | React 挂载入口和当前开发门页面。                               |
-| `frontend/src/styles.css` | 当前最小全局样式；不是阶段 3 的最终主题。                      |
+| 文件或目录                             | 用途                                                                                       |
+| -------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `frontend/package.json`                | React、Router、Query、Tailwind、shadcn/ui 基础依赖及构建、测试、类型命令。                 |
+| `frontend/tsconfig.json`               | 浏览器、React、Vite 与 Vitest 的严格 TypeScript 配置。                                     |
+| `frontend/vite.config.ts`              | React、Tailwind、Vitest jsdom 和本地 `/api` 代理配置。                                     |
+| `frontend/index.html`                  | 浏览器 HTML 入口，提供 `#root` 和 `/src/main.tsx` 模块脚本。                               |
+| `frontend/src/main.tsx`                | React 挂载入口。                                                                           |
+| `frontend/src/app.tsx`                 | QueryClient、BrowserRouter 和全部路由组合。                                                |
+| `frontend/src/styles.css`              | OKLCH 主题、Tailwind token、应用壳与页面布局、响应式和 reduced motion 基线。               |
+| `frontend/src/components/ui/`          | 可维护的 shadcn/ui 风格组件源码：Button、Input、Input OTP、Label、Alert、Badge、Skeleton、Table、Select、Dialog、Dropdown Menu。 |
+| `frontend/src/features/auth/`          | 认证壳、账号密码登录页和完整 MFA 交互（发送、倒计时、自动提交、尝试耗尽降级）。            |
+| `frontend/src/features/app/`           | 应用壳：顶部导航、当前用户、退出登录和统一认证失效重定向。                                 |
+| `frontend/src/features/overview/`      | 学业概览页：指标带、分学期趋势图与等价数据表、规则进度或安全降级提示。                     |
+| `frontend/src/features/grades/`        | 成绩页：筛选、排序、桌面表格/移动端条目、成绩组成对话框、手动刷新冷却和导出。              |
+| `frontend/src/lib/api.ts`              | 同源 API 客户端、Zod 响应校验、稳定前端错误类型和认证错误判断。                            |
+| `frontend/src/lib/academics.ts`        | GPA、学分、学期、趋势、筛选和排序的纯函数，口径与旧项目生产实现一致。                      |
+| `frontend/src/lib/rules.ts`            | 专业学分规则 schema、精确匹配器、进度计算与安全降级类型。                                  |
+| `frontend/src/lib/rules-data.ts`       | 静态专业规则表；当前为空，未核对来源的专业一律安全降级。                                   |
+| `frontend/src/lib/export.ts`           | CSV 纯函数生成与 SheetJS 按需加载的 Excel 导出，导出当前可见列表。                         |
+| `frontend/src/lib/utils.ts`            | shadcn/ui 组件 class 合并工具。                                                            |
+| `frontend/tests/`                      | 计算与规则单元测试、API 运行时边界测试、页面行为测试和脱敏 fixture 工厂。                  |
 
 `frontend/dist/` 和 `frontend/tsconfig.tsbuildinfo` 是本地生成物，不属于源码，也不得提交。
 
@@ -88,7 +101,7 @@ gdufs-jwxt-next/
 | 文件                        | 用途                                                                                                                  |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `backend/src/index.ts`      | 正式 Worker 入口，组合安全 header、请求 ID、禁止缓存、Hono API、JSON 404 和静态资源 fallback，并导出 Durable Object。 |
-| `backend/src/routes/api.ts` | `/api/v1` 路由树；当前实现健康检查和 API 级 404。                                                                     |
+| `backend/src/routes/api.ts` | `/api/v1` 路由树；实现健康检查、认证/MFA/logout、个人信息、成绩列表、刷新、详情和 API 级 404。                        |
 | `backend/src/probe.ts`      | 远程连通性探针入口，只由 `wrangler.probe.jsonc` 打包。                                                                |
 
 ### 契约与错误
@@ -102,16 +115,17 @@ gdufs-jwxt-next/
 
 ### 安全与会话
 
-| 文件                                     | 用途                                                                  |
-| ---------------------------------------- | --------------------------------------------------------------------- |
-| `backend/src/security/encoding.ts`       | UTF-8 与 base64url 编解码纯函数。                                     |
-| `backend/src/security/headers.ts`        | CSP、Permissions Policy、Referrer Policy、nosniff 和 framing header。 |
-| `backend/src/security/request-id.ts`     | 校验或生成 API 请求 ID，并写入响应。                                  |
-| `backend/src/security/request-guards.ts` | 修改认证状态请求的 JSON Content-Type 与同源 Origin/Referer 检查。     |
-| `backend/src/security/safe-logger.ts`    | 固定事件、阶段和错误码白名单的单行 JSON 安全日志。                    |
-| `backend/src/security/runtime-crypto.ts` | 学校统一认证密码协议需要的 AES-CBC 加密；不用于本应用会话。           |
-| `backend/src/session/encrypted-state.ts` | AES-GCM 客户端状态签发、解封、用途绑定、过期和硬轮换版本检查。        |
-| `backend/src/session/cookie-budget.ts`   | 状态 Cookie 序列化、读取、清除和字节预算检查。                        |
+| 文件                                     | 用途                                                                             |
+| ---------------------------------------- | -------------------------------------------------------------------------------- |
+| `backend/src/security/encoding.ts`       | UTF-8 与 base64url 编解码纯函数。                                                |
+| `backend/src/security/headers.ts`        | CSP、Permissions Policy、Referrer Policy、nosniff 和 framing header。            |
+| `backend/src/security/request-id.ts`     | 校验或生成 API 请求 ID，并写入响应。                                             |
+| `backend/src/security/request-guards.ts` | 修改认证状态请求的 JSON Content-Type 与同源 Origin/Referer 检查。                |
+| `backend/src/security/safe-logger.ts`    | 固定事件、阶段和错误码白名单的单行 JSON 安全日志。                               |
+| `backend/src/security/runtime-crypto.ts` | 学校统一认证密码协议需要的 AES-CBC 加密；不用于本应用会话。                      |
+| `backend/src/session/encrypted-state.ts` | AES-GCM 客户端状态签发、解封、用途绑定、过期和硬轮换版本检查。                   |
+| `backend/src/session/auth-state.ts`      | MFA 与正式登录 payload schema、Cookie 名称、有效期、上游 Cookie 边界和状态续期。 |
+| `backend/src/session/cookie-budget.ts`   | 状态 Cookie 序列化、读取、清除和字节预算检查。                                   |
 
 ### 上游、解析与限流
 
@@ -119,7 +133,9 @@ gdufs-jwxt-next/
 | -------------------------------------------- | ------------------------------------------------------------- |
 | `backend/src/parsers/auth-login-page.ts`     | 使用 `HTMLRewriter` 提取统一认证登录页的盐和 execution 字段。 |
 | `backend/src/parsers/auth-mfa-page.ts`       | 使用 `HTMLRewriter` 提取 MFA 页面脱敏手机号。                 |
-| `backend/src/services/authserver.ts`         | 统一认证登录页、密码提交、MFA 重定向和脱敏手机号服务。        |
+| `backend/src/parsers/personal-info-page.ts`  | 使用 `HTMLRewriter` 区分教务登录页并提取个人信息。            |
+| `backend/src/services/authserver.ts`         | 统一认证登录页、密码提交、MFA 发送/校验和 CAS ticket 获取。   |
+| `backend/src/services/jwxt.ts`               | ticket 三跳、JWXT Cookie 获取和个人信息实时验证。             |
 | `backend/src/services/upstream-probe.ts`     | 固定学校域名探测、逐跳重定向、临时 Cookie jar 和脱敏摘要。    |
 | `backend/src/upstream/constants.ts`          | 固定学校 URL、host/path 白名单和 User-Agent。                 |
 | `backend/src/upstream/cookie-jar.ts`         | 可序列化上游 Cookie 解析、scope 匹配、替换和过期。            |
@@ -134,39 +150,42 @@ gdufs-jwxt-next/
 
 ## 6. 后端测试
 
-| 文件                                     | 用途                                                                           |
-| ---------------------------------------- | ------------------------------------------------------------------------------ |
-| `backend/tests/app.test.ts`              | 正式 Worker 路由、header、Workers crypto、Cookie 预算和 SQLite DO 运行时测试。 |
-| `backend/tests/api-schema.test.ts`       | API schema 成功样例、格式和长度边界。                                          |
-| `backend/tests/encrypted-state.test.ts`  | AEAD 篡改、用途、硬轮换、闲置/绝对过期和续期测试。                             |
-| `backend/tests/request-security.test.ts` | Content-Type、同源、统一错误和 `Retry-After` 测试。                            |
-| `backend/tests/rate-limit.test.ts`       | HMAC 分片、固定窗口、SQLite 原子计数、并发和清理测试。                         |
-| `backend/tests/security-config.test.ts`  | Secret 格式、版本、硬轮换配置和跨用途密钥独立性测试。                          |
-| `backend/tests/safe-logger.test.ts`      | 结构化日志白名单、5xx 记录和敏感异常隔离测试。                                 |
-| `backend/tests/authserver.test.ts`       | CAS 密码向量、登录表单、Cookie 链和认证错误分类测试。                          |
-| `backend/tests/upstream-client.test.ts`  | URL 白名单、重定向和 Cookie jar scope/过期测试。                               |
-| `backend/tests/upstream-probe.test.ts`   | 上游探针重定向、Cookie 脱敏、超时和白名单测试。                                |
-| `backend/tests/fixtures/session.ts`      | 结构等价且完全脱敏的 MFA/登录状态 fixture。                                    |
-| `backend/tests/env.d.ts`                 | 将 Wrangler 生成的 `Bindings` 合并进 Workers 测试环境。                        |
+| 文件                                     | 用途                                                                             |
+| ---------------------------------------- | -------------------------------------------------------------------------------- |
+| `backend/tests/app.test.ts`              | 正式 Worker 路由、header、Workers crypto、Cookie 预算和 SQLite DO 运行时测试。   |
+| `backend/tests/api-schema.test.ts`       | API schema 成功样例、格式和长度边界。                                            |
+| `backend/tests/encrypted-state.test.ts`  | AEAD 篡改、用途、硬轮换、闲置/绝对过期和续期测试。                               |
+| `backend/tests/request-security.test.ts` | Content-Type、同源、统一错误和 `Retry-After` 测试。                              |
+| `backend/tests/rate-limit.test.ts`       | HMAC 分片、固定窗口、SQLite 原子计数、并发和清理测试。                           |
+| `backend/tests/security-config.test.ts`  | Secret 格式、版本、硬轮换配置和跨用途密钥独立性测试。                            |
+| `backend/tests/safe-logger.test.ts`      | 结构化日志白名单、5xx 记录和敏感异常隔离测试。                                   |
+| `backend/tests/authserver.test.ts`       | CAS 密码向量、登录表单、MFA JSON、Cookie 链和认证错误分类测试。                  |
+| `backend/tests/auth-api.test.ts`         | Worker 边界的完整登录顺序、Cookie 域隔离、会话转换、`/me` 续期和第五次失败清理。 |
+| `backend/tests/jwxt.test.ts`             | ticket 三跳、JWXT Cookie、个人信息解析和教务会话失效边界。                       |
+| `backend/tests/upstream-client.test.ts`  | URL 白名单、重定向和 Cookie jar scope/过期测试。                                 |
+| `backend/tests/upstream-probe.test.ts`   | 上游探针重定向、Cookie 脱敏、超时和白名单测试。                                  |
+| `backend/tests/fixtures/session.ts`      | 结构等价且完全脱敏的 MFA/登录状态 fixture。                                      |
+| `backend/tests/env.d.ts`                 | 将 Wrangler 生成的 `Bindings` 合并进 Workers 测试环境。                          |
 
 测试的具体写法和运行方式见 [单元测试](../testing/unit-testing.md)。
 
 ## 7. 文档与本地生成物
 
-`architecture/`、`development/`、`testing/`、`api/`、`security/`、`cloudflare/` 分别承担单一长期职责，不能按阶段复制同一内容。
+`architecture/`、`development/`、`testing/`、`api/`、`frontend/`、`security/`、`cloudflare/` 分别承担单一长期职责，不能按阶段复制同一内容。
 
-| 文件                                               | 用途                                                    |
-| -------------------------------------------------- | ------------------------------------------------------- |
-| `docs/README.md`                                   | 开发文档入口、分类说明和当前文档索引。                  |
-| `docs/architecture/project-structure.md`           | 当前仓库目录、逐文件职责、模块边界和生成物说明。        |
-| `docs/development/typescript-local-development.md` | TypeScript 环境、类型检查、前后端启动、联调和调试。     |
-| `docs/testing/unit-testing.md`                     | 测试分层、Workers Vitest、fixture、单元测试写法和排错。 |
-| `docs/api/v1-contract.md`                          | `/api/v1` 通用约定、资源 schema 和成绩详情边界。        |
-| `docs/authentication/authserver.md`                | 统一认证登录页、CAS 密码、Cookie jar 和 MFA 准备流程。  |
-| `docs/security/client-state.md`                    | AES-GCM 客户端状态、Cookie 预算、硬轮换和请求安全。     |
-| `docs/security/rate-limiting.md`                   | HMAC 16 分片、SQLite DO 原子限流、规则和故障语义。      |
-| `docs/security/configuration-and-logging.md`       | Secret 解析、密钥硬轮换和结构化日志白名单。             |
-| `docs/cloudflare/wrangler-development.md`          | Wrangler 登录、本地/远程运行、探针、secret 和部署。     |
+| 文件                                               | 用途                                                        |
+| -------------------------------------------------- | ----------------------------------------------------------- |
+| `docs/README.md`                                   | 开发文档入口、分类说明和当前文档索引。                      |
+| `docs/architecture/project-structure.md`           | 当前仓库目录、逐文件职责、模块边界和生成物说明。            |
+| `docs/development/typescript-local-development.md` | TypeScript 环境、类型检查、前后端启动、联调和调试。         |
+| `docs/testing/unit-testing.md`                     | 测试分层、Workers Vitest、fixture、单元测试写法和排错。     |
+| `docs/api/v1-contract.md`                          | `/api/v1` 通用约定、资源 schema 和成绩详情边界。            |
+| `docs/authentication/authserver.md`                | 统一认证、MFA、SSO ticket、教务 Cookie 和个人信息验证流程。 |
+| `docs/frontend/data-flow-and-academics.md`         | 前端页面结构、查询键、学业计算口径、规则降级和导出。        |
+| `docs/security/client-state.md`                    | AES-GCM 客户端状态、Cookie 预算、硬轮换和请求安全。         |
+| `docs/security/rate-limiting.md`                   | HMAC 16 分片、SQLite DO 原子限流、规则和故障语义。          |
+| `docs/security/configuration-and-logging.md`       | Secret 解析、密钥硬轮换和结构化日志白名单。                 |
+| `docs/cloudflare/wrangler-development.md`          | Wrangler 登录、本地/远程运行、探针、secret 和部署。         |
 
 以下目录只用于本地运行，不属于项目源文件：
 

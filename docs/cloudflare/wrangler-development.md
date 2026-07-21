@@ -206,7 +206,7 @@ pnpm --filter @gdufs-jwxt/backend exec wrangler dev \
 - 远程会话停止后本地代理不可访问，临时响应文件已清理；
 - 正式 Worker dry-run 产物中不存在 `__probe`、`PROBE_ENABLED` 或 `PROBE_TOKEN`。
 
-当前已确认 Cloudflare Worker 能稳定访问两个学校基础入口，完成运行所需的 DNS 解析和 TLS 握手，读取 UTF-8 HTML 和多个 `Set-Cookie`，并解析统一认证登录字段。两个无凭据基础入口当前直接返回 `200`，没有观察到实际重定向链；登录后的 MFA、SSO ticket 和教务 Cookie 变化仍需在认证实现文档和对应脱敏测试中说明。
+当前已确认 Cloudflare Worker 能稳定访问两个学校基础入口，完成运行所需的 DNS 解析和 TLS 握手，读取 UTF-8 HTML 和多个 `Set-Cookie`，并解析统一认证登录字段。两个无凭据基础入口当前直接返回 `200`，没有观察到实际重定向链；远程探针不携带真实凭据，因此不能用它验证登录后的 MFA、SSO ticket 或教务 Cookie 变化。完整认证顺序已经在 `authserver.test.ts`、`jwxt.test.ts` 和 `auth-api.test.ts` 的 Workers 运行时脱敏 mock 中逐跳验证，正式上游适配必须继续遵守 [统一认证适配](../authentication/authserver.md) 的顺序和白名单约束。
 
 Workers 标准 `fetch` 不暴露独立 DNS 查询结果、解析地址、TLS 版本、密码套件或证书链。因此 HTTPS 请求成功只能证明所需 DNS/TLS 路径可用，不能据此记录具体 DNS 或 TLS 细节；请求失败时也未必能可靠区分 DNS 与 TLS 阶段。
 

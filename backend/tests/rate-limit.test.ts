@@ -112,6 +112,28 @@ describe("SQLite rate-limit shard", () => {
     });
   });
 
+  it("reports when an accepted consume reaches the requested limit", async () => {
+    const stub = env.RATE_LIMIT_SHARD.getByName("exhaustion-report");
+    const rule = { ...RATE_LIMIT_RULES.mfaVerifyFlow, limit: 2 };
+
+    await expect(
+      stub.checkAndConsume({
+        subjectHash,
+        rules: [rule],
+        now,
+        returnExhaustedAfterConsume: true,
+      }),
+    ).resolves.toEqual({ allowed: true });
+    await expect(
+      stub.checkAndConsume({
+        subjectHash,
+        rules: [rule],
+        now: now + 1,
+        returnExhaustedAfterConsume: true,
+      }),
+    ).resolves.toEqual({ allowed: true, exhaustedAfterConsume: true });
+  });
+
   it("serializes concurrent attempts for the same subject", async () => {
     const stub = env.RATE_LIMIT_SHARD.getByName("concurrent");
     const rule = { ...RATE_LIMIT_RULES.authLoginAccount, limit: 2 };

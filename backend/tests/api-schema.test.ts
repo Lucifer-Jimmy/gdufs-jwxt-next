@@ -28,16 +28,17 @@ describe("API v1 schemas", () => {
             courseName: "高等数学",
             semester: "2025-2026-1",
             credits: 4,
-            score: "优秀",
-            numericScore: null,
+            score: "92",
+            numericScore: 92,
             gradePoint: 4.5,
-            courseNature: "必修",
-            courseAttribute: "专业课",
+            assessmentMethod: "考试",
+            courseAttribute: "必修",
+            courseCategory: "专业教育",
             detailKey: {
               studentKey: "student-fixture",
               teachingClassKey: "class-fixture",
               gradeRecordKey: "grade-fixture",
-              totalScore: "优秀",
+              totalScore: "92",
             },
           },
         ],
@@ -87,16 +88,22 @@ describe("API v1 schemas", () => {
 
   it("rejects non-finite grade numbers without the deprecated finite check", () => {
     const grade = {
-      courseCode: null,
+      courseCode: "GW20021",
       courseName: "高等数学",
-      semester: null,
+      semester: "2025-2026-1",
       credits: 4,
       score: "92",
       numericScore: 92,
       gradePoint: 4.2,
-      courseNature: null,
-      courseAttribute: null,
-      detailKey: null,
+      assessmentMethod: "考试",
+      courseAttribute: "必修",
+      courseCategory: null,
+      detailKey: {
+        studentKey: "student-fixture",
+        teachingClassKey: "class-fixture",
+        gradeRecordKey: "record-fixture",
+        totalScore: "92",
+      },
     };
 
     expect(

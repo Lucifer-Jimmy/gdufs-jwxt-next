@@ -90,14 +90,14 @@ return this.ctx.storage.transactionSync(() => {
 | 账号密码登录 | IP       | 10 分钟最多 30 次                        |
 | MFA 发送     | 账号     | 10 分钟最多 3 次，同时 24 小时最多 10 次 |
 | MFA 发送     | IP       | 10 分钟最多 20 次                        |
-| MFA 校验失败 | MFA flow | 单个 10 分钟流程最多 5 次                |
+| MFA 校验尝试 | MFA flow | 单个 10 分钟流程最多 5 次                |
 | 成绩手动刷新 | 账号     | 30 秒最多 1 次                           |
 
-MFA 发送仍须遵守学校返回的 `codeTime`；路由应取本地判定和上游冷却中的更严格等待时间。MFA 校验只在校验失败时登记 flow 失败计数；达到 5 次后，认证路由还必须清除临时 Cookie。
+MFA 发送仍须遵守学校返回的 `codeTime`；路由取本地限流判定和上游冷却中的更严格等待时间。MFA 校验尝试在调用上游前通过 `consumeRateLimit()` 原子消费额度，动作仍使用 `mfa_verify_flow` 表示该流程的失败策略。这样上游超时、非 JSON 或其他失败不会返还已经接受的尝试额度，符合“Worker 已准备执行即计数”的规则。调用 `returnExhaustedAfterConsume` 后，若第五次被接受的尝试最终返回无效验证码，路由清除 MFA 临时 Cookie，要求重新开始账号密码登录；若额度已经耗尽，则直接返回 `429` 并清除临时 Cookie。
 
 ## 6. 路由调用
 
-阶段 2 路由应从当前认证步骤取得主体，并传入完整策略。账号登录示例：
+当前认证路由从当前认证步骤取得主体，并传入完整策略。账号登录示例：
 
 ```ts
 await enforceRateLimits({
@@ -121,7 +121,7 @@ await enforceRateLimits({
 
 维度按顺序登记。若账号维度已登记而 IP 维度随后触发限制或发生故障，账号额度不返还，符合“被 Worker 接受并准备执行的尝试计数”规则。成功登录只通过 DO 的 `clear()` 清理该账号的 `auth_login_account` 连续失败计数，不清理 IP 窗口。
 
-任何 HMAC、binding、RPC、DO 或 SQLite 异常都映射为通用可恢复 `500` 并拒绝受保护动作，不得失效放行。正常超限映射为 `429`，由统一错误层同时写入 `Retry-After` 和 `retryAfterSeconds`。
+任何 HMAC、binding、RPC、DO 或 SQLite 异常都映射为通用可恢复 `500` 并拒绝受保护动作，不得失效放行。正常超限映射为 `429`，由统一错误层同时写入 `Retry-After` 和 `retryAfterSeconds`。成绩刷新路由已接入账号级 30 秒策略，并沿用同一 fail-closed 语义；额度在访问上游前登记，上游失败不返还。
 
 ## 7. 验证
 
@@ -139,4 +139,4 @@ pnpm --filter @gdufs-jwxt/backend test
 - 不同主体隔离、指定动作清理和过期元数据删除；
 - Worker 调用层的 RPC 路由与 `429` 映射。
 
-阶段 2 接入真实路由后还需增加请求级契约测试，验证账号/IP 组合、MFA 上游冷却、五次失败清 Cookie，以及 DO 故障时响应中不含主体或底层异常。
+`backend/tests/auth-api.test.ts` 进一步通过请求级契约验证账号/IP 组合、MFA 上游 Cookie 恢复、发送状态、完整认证请求顺序、五次无效校验清 Cookie，以及错误响应中不含主体或底层异常。`backend/tests/grades-api.test.ts` 验证成绩手动刷新每 30 秒只放行一次、标准 `Retry-After`、上游失败不返还额度以及不同账号主体隔离。

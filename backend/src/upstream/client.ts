@@ -2,7 +2,7 @@ import { DomainError } from "../errors/domain-error";
 import { isAllowedUpstreamUrl, UPSTREAM_USER_AGENT } from "./constants";
 import { UpstreamCookieJar } from "./cookie-jar";
 
-type UpstreamFetch = (
+export type UpstreamFetch = (
   input: RequestInfo | URL,
   init?: RequestInit,
 ) => Promise<Response>;
@@ -23,7 +23,7 @@ export class UpstreamClient {
   private readonly now: () => number;
 
   constructor(options: UpstreamClientOptions) {
-    this.fetcher = options.fetcher ?? fetch;
+    this.fetcher = options.fetcher ?? ((input, init) => fetch(input, init));
     this.timeoutMs = options.timeoutMs;
     this.maxRedirects = options.maxRedirects ?? 5;
     this.jar = options.jar ?? new UpstreamCookieJar();

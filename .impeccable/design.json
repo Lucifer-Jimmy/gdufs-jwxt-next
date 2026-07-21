@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-20T03:00:00.000Z",
+  "title": "Design System: GDUFS JWXT Next",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "暖珊瑚锚点",
+        "canonical": "oklch(0.56 0.17 35)",
+        "tonalRamp": [
+          "oklch(0.95 0.027 35)",
+          "oklch(0.75 0.11 35)",
+          "oklch(0.56 0.17 35)",
+          "oklch(0.51 0.17 35)"
+        ]
+      },
+      "background": {
+        "role": "neutral",
+        "displayName": "无色偏底面",
+        "canonical": "oklch(0.985 0 0)",
+        "tonalRamp": [
+          "oklch(1 0 0)",
+          "oklch(0.985 0 0)",
+          "oklch(0.955 0.004 35)",
+          "oklch(0.885 0.008 35)"
+        ]
+      },
+      "foreground": {
+        "role": "neutral",
+        "displayName": "高对比墨色",
+        "canonical": "oklch(0.205 0.012 35)",
+        "tonalRamp": [
+          "oklch(0.72 0.008 35)",
+          "oklch(0.455 0.012 35)",
+          "oklch(0.3 0.012 35)",
+          "oklch(0.205 0.012 35)"
+        ]
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "成功语义色",
+        "canonical": "oklch(0.42 0.09 155)",
+        "tonalRamp": ["oklch(0.955 0.03 155)", "oklch(0.42 0.09 155)"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "页面标题",
+        "purpose": "认证或应用页面的最高层标题。"
+      },
+      "body": { "displayName": "正文", "purpose": "说明、状态和数据上下文。" },
+      "label": {
+        "displayName": "控件标签",
+        "purpose": "字段、按钮与紧凑元数据。"
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "state",
+        "value": "200ms ease-out",
+        "purpose": "按钮、输入和状态颜色变化。"
+      },
+      {
+        "name": "reduced",
+        "value": "0.01ms",
+        "purpose": "prefers-reduced-motion 下取消非必要位移与循环。"
+      }
+    ],
+    "breakpoints": [
+      { "name": "compact", "value": "820px" },
+      { "name": "grades-switch", "value": "720px" },
+      { "name": "panel", "value": "640px" },
+      { "name": "mobile", "value": "520px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "表单内唯一主操作。",
+      "html": "<button class=\"ds-btn-primary\">继续</button>",
+      "css": ".ds-btn-primary{height:44px;padding:0 20px;border:0;border-radius:6px;background:oklch(0.56 0.17 35);color:oklch(0.99 0 0);font:600 14px system-ui;transition:background-color 200ms ease-out,transform 200ms ease-out}.ds-btn-primary:hover{background:oklch(0.51 0.17 35)}.ds-btn-primary:focus-visible{outline:2px solid oklch(0.57 0.16 35);outline-offset:2px}.ds-btn-primary:active{transform:translateY(1px)}"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "常驻标签下的账号与密码输入。",
+      "html": "<label class=\"ds-field\">学号<input class=\"ds-input\" placeholder=\"请输入学号\"></label>",
+      "css": ".ds-field{display:grid;gap:9px;color:oklch(0.205 0.012 35);font:600 14px system-ui}.ds-input{height:44px;padding:0 14px;border:1px solid oklch(0.82 0.01 35);border-radius:6px;background:oklch(0.985 0 0);color:oklch(0.205 0.012 35);font:400 14px system-ui;outline:none;transition:border-color 200ms ease-out,box-shadow 200ms ease-out}.ds-input:focus-visible{border-color:oklch(0.57 0.16 35);box-shadow:0 0 0 2px oklch(0.57 0.16 35 / .25)}"
+    },
+    {
+      "name": "Auth Panel",
+      "kind": "card",
+      "refersTo": "auth-panel",
+      "description": "认证任务的单一工作面，不嵌套卡片。",
+      "html": "<section class=\"ds-auth-panel\"><h2>登录</h2><p>使用学校统一认证账号继续</p></section>",
+      "css": ".ds-auth-panel{width:360px;padding:42px;border:1px solid oklch(0.885 0.008 35);border-radius:8px;background:oklch(1 0 0);color:oklch(0.205 0.012 35);font-family:system-ui}.ds-auth-panel h2{margin:0;font-size:24px;line-height:1.3}.ds-auth-panel p{margin:8px 0 0;color:oklch(0.455 0.012 35);font-size:14px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "有重量的静谧界面",
+    "overview": "安静的中性表面承载任务，暖珊瑚只标记行动和最高优先级状态。结构依靠空间、明度与排版建立。",
+    "keyCharacteristics": [
+      "低占比暖珊瑚",
+      "平坦静止层级",
+      "稳定中文排版",
+      "原位状态反馈"
+    ],
+    "rules": [
+      {
+        "name": "The Ten Percent Rule",
+        "body": "主色只用于行动、选择和最高优先级信息。",
+        "section": "colors"
+      },
+      {
+        "name": "The Flat-by-Default Rule",
+        "body": "静止表面无阴影，浮层才获得 elevation。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use shadcn/ui semantics and stable control dimensions.",
+      "Do preserve clear focus and recoverable errors."
+    ],
+    "donts": [
+      "Don't build a templated SaaS dashboard.",
+      "Don't use gradients, glassmorphism, decorative grids, or nested cards."
+    ]
+  }
+}

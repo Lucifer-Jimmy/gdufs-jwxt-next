@@ -5,8 +5,10 @@ export interface UpstreamCookie {
   path: string;
   hostOnly: boolean;
   secure: boolean;
-  expiresAt?: number;
+  expiresAt?: number | undefined;
 }
+
+const SCHOOL_COOKIE_DOMAIN = "gdufs.edu.cn";
 
 export class UpstreamCookieJar {
   private readonly cookies: UpstreamCookie[];
@@ -21,9 +23,20 @@ export class UpstreamCookieJar {
       if (cookie === undefined) {
         continue;
       }
-      this.remove(cookie.name, cookie.domain, cookie.path);
+      const existingIndex = this.indexOf(
+        cookie.name,
+        cookie.domain,
+        cookie.path,
+      );
+      if (existingIndex >= 0) {
+        this.cookies.splice(existingIndex, 1);
+      }
       if (cookie.expiresAt === undefined || cookie.expiresAt > now) {
-        this.cookies.push(cookie);
+        if (existingIndex >= 0) {
+          this.cookies.splice(existingIndex, 0, cookie);
+        } else {
+          this.cookies.push(cookie);
+        }
       }
     }
   }
@@ -44,16 +57,19 @@ export class UpstreamCookieJar {
       .map((cookie) => ({ ...cookie }));
   }
 
-  private remove(name: string, domain: string, path: string): void {
-    const index = this.cookies.findIndex(
+  serializeFor(url: URL, now: number): UpstreamCookie[] {
+    return this.cookies
+      .filter((cookie) => cookieMatches(cookie, url, now))
+      .map((cookie) => ({ ...cookie }));
+  }
+
+  private indexOf(name: string, domain: string, path: string): number {
+    return this.cookies.findIndex(
       (cookie) =>
         cookie.name === name &&
         cookie.domain === domain &&
         cookie.path === path,
     );
-    if (index >= 0) {
-      this.cookies.splice(index, 1);
-    }
   }
 }
 
@@ -100,8 +116,9 @@ function parseSetCookie(
     if (key === "domain" && attributeValue.length > 0) {
       const candidate = attributeValue.replace(/^\./u, "").toLowerCase();
       if (
-        requestUrl.hostname !== candidate &&
-        !requestUrl.hostname.endsWith(`.${candidate}`)
+        !isSchoolCookieDomain(candidate) ||
+        (requestUrl.hostname !== candidate &&
+          !requestUrl.hostname.endsWith(`.${candidate}`))
       ) {
         return undefined;
       }
@@ -131,6 +148,13 @@ function parseSetCookie(
     secure,
     ...(expiresAt === undefined ? {} : { expiresAt }),
   };
+}
+
+export function isSchoolCookieDomain(domain: string): boolean {
+  return (
+    domain === SCHOOL_COOKIE_DOMAIN ||
+    domain.endsWith(`.${SCHOOL_COOKIE_DOMAIN}`)
+  );
 }
 
 function cookieMatches(cookie: UpstreamCookie, url: URL, now: number): boolean {

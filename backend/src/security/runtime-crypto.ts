@@ -2,6 +2,8 @@ import { encodeUtf8, toBase64 } from "./encoding";
 
 const AES_BLOCK_BYTES = 16;
 const LOGIN_RANDOM_PREFIX_BYTES = 64;
+const LOGIN_RANDOM_CHARACTERS =
+  "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678";
 
 export async function encryptUpstreamPassword(
   password: string,
@@ -21,8 +23,10 @@ export async function encryptUpstreamPassword(
     false,
     ["encrypt"],
   );
-  const iv = randomBytes(AES_BLOCK_BYTES);
-  const prefix = randomBytes(LOGIN_RANDOM_PREFIX_BYTES);
+  const iv = encodeUtf8(randomUpstreamString(AES_BLOCK_BYTES, randomBytes));
+  const prefix = encodeUtf8(
+    randomUpstreamString(LOGIN_RANDOM_PREFIX_BYTES, randomBytes),
+  );
   const plaintext = new Uint8Array(
     prefix.byteLength + encodeUtf8(password).byteLength,
   );
@@ -39,4 +43,15 @@ export async function encryptUpstreamPassword(
 
 function secureRandomBytes(length: number): Uint8Array<ArrayBuffer> {
   return crypto.getRandomValues(new Uint8Array(length));
+}
+
+function randomUpstreamString(
+  length: number,
+  randomBytes: (length: number) => Uint8Array<ArrayBuffer>,
+): string {
+  const bytes = randomBytes(length);
+  return Array.from(
+    bytes,
+    (byte) => LOGIN_RANDOM_CHARACTERS[byte % LOGIN_RANDOM_CHARACTERS.length],
+  ).join("");
 }

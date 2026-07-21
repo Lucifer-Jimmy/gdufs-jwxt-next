@@ -22,6 +22,8 @@ export default defineConfig({
 });
 ```
 
+正式 Wrangler 配置声明了 required secrets。测试配置在加载 Wrangler 前通过 `globalThis.process.env` 注入仅用于测试的合成 base64url 值，保证测试不会读取真实 secret，也不会因为 required secret 缺失而改变正式 binding。该注入只存在于 Vitest 进程，不得复制到 `.dev.vars` 或生产配置。
+
 ## 2. 运行测试
 
 运行全部 workspace 测试：
@@ -100,6 +102,10 @@ const decision = await stub.checkAndConsume({
 
 不得在常规测试中请求学校系统。使用 mock `fetch` 和脱敏 fixture 验证 URL 白名单、方法、header、表单字段、手动重定向、Cookie 变化和解析错误。测试断言不能输出完整请求凭据或上游正文。
 
+认证 API 契约测试必须逐项断言旧项目生产顺序：CAS 登录页、密码 POST、MFA 页面、发送验证码、校验验证码、重新获取 ticket、JWXT ticket、`/sso.jsp`、`/jsxsd/xk/LoginToXk?ticket1=...`、个人信息验证。必须断言包括 `/jsxsd/sso.jsp` 在内的其他路径不能借 ticket1 绕过白名单。还必须断言 authserver Cookie 不进入全新的 JWXT client、MFA Cookie 在发送后保存更新后的 authserver Cookie、成功后清 MFA Cookie并签发正式 Cookie，以及 `/me` 仅在成功后返回续期 Cookie。
+
+会话 fixture 必须匹配当前 `auth-state.ts` 的 schema：claims 元数据位于外层，payload 只包含用途字段；账号 HMAC 使用合法 43 字符 base64url，流程 ID 使用合法 UUID，上游 Cookie 包含 `hostOnly` 和 `secure`。表单 body 断言使用 `arrayBuffer()` 解码，避免 workerd 对测试中的不匹配文本解码产生警告。
+
 ## 4. 编写测试
 
 测试文件放在对应 workspace 的 `tests/`，命名为 `<subject>.test.ts` 或 `<component>.test.tsx`。推荐结构：
@@ -165,10 +171,10 @@ pnpm --filter @gdufs-jwxt/backend exec vitest run \
 
 ## 7. 前端测试接入要求
 
-阶段 3 建立前端测试时，应新增 `frontend/tests/` 和对应 Vitest 配置，并使用：
+前端已使用 Vitest jsdom 与 Testing Library 建立测试入口。当前 `frontend/tests/login-page.test.tsx` 覆盖空字段校验、真实请求结构、MFA 跳转和 API 错误上下文；`frontend/tests/api.test.ts` 覆盖成功响应仍必须通过 Zod 运行时契约。后续功能继续使用：
 
 - Testing Library 测表单语义、键盘行为、加载/空/错误状态；
-- MSW 或等价边界 mock 模拟 `/api/v1`，响应仍需经过前端 Zod 校验；
+- `fetch` 边界 mock 或 MSW 模拟 `/api/v1`，响应仍需经过前端 Zod 校验；
 - Playwright 测登录 mock 流程、概览、成绩、详情、导出和手机/桌面视觉；
 - 图表同时断言可访问文本/表格替代，不能只做截图测试。
 

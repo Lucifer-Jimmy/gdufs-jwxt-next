@@ -43,6 +43,7 @@ export const mfaVerifyResponseSchema = z.object({
 });
 
 export const logoutRequestSchema = z.object({}).strict();
+export const gradesRefreshRequestSchema = z.object({}).strict();
 
 export const logoutResponseSchema = z.object({
   loggedOut: z.literal(true),
@@ -63,16 +64,17 @@ export const gradeDetailKeySchema = z.object({
 });
 
 export const gradeSchema = z.object({
-  courseCode: nullableText(64),
+  courseCode: boundedText(64),
   courseName: boundedText(256),
-  semester: nullableText(64),
-  credits: z.number().nonnegative().nullable(),
-  score: nullableText(64),
-  numericScore: z.number().min(0).max(100).nullable(),
-  gradePoint: z.number().nonnegative().nullable(),
-  courseNature: nullableText(128),
-  courseAttribute: nullableText(128),
-  detailKey: gradeDetailKeySchema.nullable(),
+  semester: boundedText(64),
+  credits: z.number().nonnegative(),
+  score: boundedText(64),
+  numericScore: z.number().min(0).max(100),
+  gradePoint: z.number().nonnegative(),
+  assessmentMethod: boundedText(128),
+  courseAttribute: boundedText(128),
+  courseCategory: nullableText(128),
+  detailKey: gradeDetailKeySchema,
 });
 
 export const gradesResponseSchema = z.object({
@@ -86,16 +88,16 @@ export const gradesRefreshResponseSchema = gradesResponseSchema.extend({
 
 export const gradeDetailRequestSchema = gradeDetailKeySchema.strict();
 
-export const gradeComponentSchema = z.object({
-  name: boundedText(128),
-  score: nullableText(64),
-  percentage: nullableText(32),
-});
-
-export const gradeDetailResponseSchema = z.object({
-  totalScore: nullableText(64),
-  components: z.array(gradeComponentSchema).max(32),
-});
+export const gradeDetailResponseSchema = z
+  .record(z.string().min(1).max(128), z.json())
+  .superRefine((value, context) => {
+    if (Object.keys(value).length > 64) {
+      context.addIssue({
+        code: "custom",
+        message: "Grade detail contains too many fields",
+      });
+    }
+  });
 
 export const healthResponseSchema = z.object({
   status: z.literal("ok"),
@@ -113,4 +115,5 @@ export const apiErrorSchema = z.object({
 export type ApiError = z.infer<typeof apiErrorSchema>;
 export type Grade = z.infer<typeof gradeSchema>;
 export type GradeDetailKey = z.infer<typeof gradeDetailKeySchema>;
+export type GradeDetail = z.infer<typeof gradeDetailResponseSchema>;
 export type PersonalInfo = z.infer<typeof personalInfoSchema>;

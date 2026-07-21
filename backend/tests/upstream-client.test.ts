@@ -34,6 +34,27 @@ describe("upstream cookie jar", () => {
     ]);
   });
 
+  it("replaces a cookie in place without changing creation order", () => {
+    const jar = new UpstreamCookieJar();
+    const requestUrl = new URL(
+      "https://authserver.gdufs.edu.cn/authserver/login",
+    );
+
+    for (const serialized of [
+      "AUTH=first; Path=/authserver",
+      "route=first; Path=/authserver",
+      "AUTH=second; Path=/authserver",
+    ]) {
+      jar.capture(
+        new Response(null, { headers: { "Set-Cookie": serialized } }),
+        requestUrl,
+        now,
+      );
+    }
+
+    expect(jar.header(requestUrl, now)).toBe("AUTH=second; route=first");
+  });
+
   it("rejects a cookie Domain outside the response host", () => {
     const jar = new UpstreamCookieJar();
     jar.capture(
@@ -46,9 +67,96 @@ describe("upstream cookie jar", () => {
 
     expect(jar.serialize(now)).toEqual([]);
   });
+
+  it("rejects an overbroad parent Domain instead of failing session state", () => {
+    const jar = new UpstreamCookieJar();
+    jar.capture(
+      new Response(null, {
+        headers: { "Set-Cookie": "route=fixture; Domain=edu.cn; Path=/" },
+      }),
+      new URL("https://authserver.gdufs.edu.cn/authserver/login"),
+      now,
+    );
+
+    expect(jar.serialize(now)).toEqual([]);
+  });
+
+  it("accepts school parent and subdomain Cookie domains", () => {
+    const jar = new UpstreamCookieJar();
+    const requestUrl = new URL(
+      "https://authserver.gdufs.edu.cn/authserver/login",
+    );
+    const headers = new Headers();
+    headers.append(
+      "Set-Cookie",
+      "parent=fixture; Domain=.gdufs.edu.cn; Path=/authserver",
+    );
+    headers.append(
+      "Set-Cookie",
+      "host=fixture; Domain=authserver.gdufs.edu.cn; Path=/authserver",
+    );
+
+    jar.capture(new Response(null, { headers }), requestUrl, now);
+
+    expect(jar.serialize(now).map((cookie) => cookie.domain)).toEqual([
+      "gdufs.edu.cn",
+      "authserver.gdufs.edu.cn",
+    ]);
+  });
+
+  it("serializes only cookies that a target URL would receive", () => {
+    const jar = new UpstreamCookieJar([
+      {
+        name: "SSO_ONLY",
+        value: "exchange",
+        domain: "jwxt.gdufs.edu.cn",
+        path: "/sso.jsp",
+        hostOnly: true,
+        secure: true,
+      },
+      {
+        name: "JSESSIONID",
+        value: "fixture-session",
+        domain: "jwxt.gdufs.edu.cn",
+        path: "/jsxsd",
+        hostOnly: true,
+        secure: true,
+      },
+    ]);
+
+    expect(
+      jar
+        .serializeFor(
+          new URL(
+            "https://jwxt.gdufs.edu.cn/jsxsd/framework/xsMainV_new.htmlx",
+          ),
+          now,
+        )
+        .map((cookie) => cookie.name),
+    ).toEqual(["JSESSIONID"]);
+  });
 });
 
 describe("upstream client", () => {
+  it("calls the runtime fetch without binding the client as its receiver", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = function () {
+      expect(this).toBeUndefined();
+      return Promise.resolve(new Response("ok"));
+    };
+
+    try {
+      const client = new UpstreamClient({ timeoutMs: 1_000 });
+      const response = await client.request(
+        new URL("https://authserver.gdufs.edu.cn/authserver/login"),
+      );
+
+      expect(await response.text()).toBe("ok");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it("follows only allowlisted redirects and carries captured cookies", async () => {
     const requests: Request[] = [];
     const client = new UpstreamClient({
@@ -125,5 +233,28 @@ describe("upstream client", () => {
 
     expect(response.status).toBe(302);
     expect(calls).toBe(1);
+  });
+
+  it("allows only the verified JWXT ticket exchange path", async () => {
+    const client = new UpstreamClient({
+      timeoutMs: 1_000,
+      fetcher: () => Promise.resolve(new Response("ok")),
+    });
+
+    await expect(
+      client.requestManual(
+        new URL("https://jwxt.gdufs.edu.cn/jsxsd/xk/LoginToXk?ticket1=fixture"),
+      ),
+    ).resolves.toMatchObject({ status: 200 });
+    await expect(
+      client.requestManual(
+        new URL("https://jwxt.gdufs.edu.cn/jsxsd/sso.jsp?ticket1=fixture"),
+      ),
+    ).rejects.toMatchObject({ code: "UPSTREAM_FAILURE", status: 502 });
+    await expect(
+      client.requestManual(
+        new URL("https://jwxt.gdufs.edu.cn/jsxsd/other?ticket1=fixture"),
+      ),
+    ).rejects.toMatchObject({ code: "UPSTREAM_FAILURE", status: 502 });
   });
 });
