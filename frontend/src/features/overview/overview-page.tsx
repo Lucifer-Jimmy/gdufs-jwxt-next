@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import {
   CartesianGrid,
   Line,
@@ -24,20 +23,12 @@ import {
   semesterTrend,
   weightedGpa,
 } from "../../lib/academics";
-import { ApiError, getGrades } from "../../lib/api";
+import { ApiError } from "../../lib/api";
 import type { Grade } from "../../lib/api";
 import { computeRuleProgress, matchMajorRule } from "../../lib/rules";
 import { MAJOR_RULES } from "../../lib/rules-data";
 import { useAuthRedirect, usePersonalInfo } from "../app/app-layout";
-
-export function useGrades() {
-  return useQuery({
-    queryKey: ["grades"],
-    queryFn: getGrades,
-    staleTime: 10 * 60 * 1_000,
-    refetchOnWindowFocus: false,
-  });
-}
+import { useGrades } from "../app/use-grades";
 
 export function OverviewPage() {
   const me = usePersonalInfo();
@@ -338,7 +329,7 @@ function ProgressRow({
       >
         <div
           className="progress-fill"
-          style={{ width: `${Math.min(100, percent)}%` }}
+          style={{ transform: `scaleX(${Math.min(100, percent) / 100})` }}
         />
       </div>
     </div>

@@ -42,6 +42,14 @@ export function earnedCredits(grades: readonly Grade[]): number {
   return grades.reduce((sum, grade) => sum + grade.credits, 0);
 }
 
+/**
+ * 是否为不及格记录：绩点为 0 且百分制低于 60。
+ * 同时要求 gradePoint===0 可避免把无绩点口径（如“通过/合格”）误判为不及格。
+ */
+export function isFailingGrade(grade: Grade): boolean {
+  return grade.gradePoint === 0 && grade.numericScore < 60;
+}
+
 /** 通识课程学分：上游 courseCategory 非空即为通识类课程。 */
 export function generalEducationCredits(grades: readonly Grade[]): number {
   return grades

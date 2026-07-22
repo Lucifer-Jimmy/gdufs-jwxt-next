@@ -141,8 +141,7 @@ export function MfaPage() {
     );
   }
 
-  const { maskedPhone, codeSent, expiresAt } = status.data;
-  const expiresAtDate = new Date(expiresAt);
+  const { maskedPhone, codeSent } = status.data;
   const busy = send.isPending || verify.isPending;
   const attemptsExhausted =
     verifyError?.code === "RATE_LIMITED" || sendError?.code === "RATE_LIMITED";
@@ -162,16 +161,7 @@ export function MfaPage() {
     <div className="auth-form-wrap">
       <div className="form-heading">
         <h2>验证手机号</h2>
-        <p>
-          验证码将发送至 {maskedPhone}，验证流程在{" "}
-          <time dateTime={expiresAt}>
-            {expiresAtDate.toLocaleTimeString("zh-CN", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </time>{" "}
-          前有效。
-        </p>
+        <p>验证码将发送至 {maskedPhone}</p>
       </div>
 
       {attemptsExhausted ? (
@@ -235,9 +225,9 @@ export function MfaPage() {
                 autoComplete="one-time-code"
                 aria-invalid={codeError ? true : undefined}
                 aria-describedby={codeError ? "mfa-code-error" : undefined}
-                containerClassName="justify-between"
+                containerClassName="w-full"
               >
-                <InputOTPGroup className="grid flex-1 grid-cols-6">
+                <InputOTPGroup className="grid w-full grid-cols-6 gap-2 sm:gap-2.5">
                   {Array.from({ length: CODE_LENGTH }, (_, index) => (
                     <InputOTPSlot key={index} index={index} />
                   ))}
@@ -288,7 +278,7 @@ export function MfaPage() {
 
           {codeSent || send.isSuccess ? (
             <div className="resend-row">
-              <span aria-live="polite">
+              <span>
                 {countdown > 0 ? `${countdown} 秒后可重新发送` : "收不到验证码？"}
               </span>
               <Button

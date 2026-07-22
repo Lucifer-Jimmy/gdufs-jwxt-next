@@ -15,6 +15,8 @@
 
 应用壳提供顶部品牌栏、「概览 / 成绩」主导航、当前用户姓名和退出按钮；未匹配路径回到 `/`。
 
+`/overview` 与 `/grades` 通过 `React.lazy` 路由级分包按需加载，Suspense 回退为与应用壳一致的骨架屏；Recharts 只进入概览页 chunk。两个页面共享的 `["grades"]` 查询定义在独立的 `features/app/use-grades.ts`，避免成绩页 chunk 反向引入概览页及其图表依赖。认证区两个页面保持在首包内，保证首屏登录路径最小化。
+
 ## 2. 请求状态管理
 
 数据获取统一使用 TanStack Query，查询结果只保存在 QueryClient 内存中，不启用任何持久化插件。固定查询键：
@@ -22,7 +24,7 @@
 | 查询键                          | 来源接口                | staleTime | 定义位置                           |
 | ------------------------------- | ----------------------- | --------- | ---------------------------------- |
 | `["me"]`                        | `GET /api/v1/me`        | 5 分钟    | `features/app/app-layout.tsx`      |
-| `["grades"]`                    | `GET /api/v1/grades`    | 10 分钟   | `features/overview/overview-page.tsx` |
+| `["grades"]`                    | `GET /api/v1/grades`    | 10 分钟   | `features/app/use-grades.ts`       |
 | `["grade-detail", recordKey]`   | `POST /api/v1/grades/detail` | Infinity | `features/grades/grades-page.tsx`  |
 
 所有查询关闭 `refetchOnWindowFocus`。成绩详情以成绩记录键为查询键且永不失效：详情是上游原样透传的单层 JSON，打开对话框时按记录拉取一次，关闭后保留 10 分钟供再次打开复用。

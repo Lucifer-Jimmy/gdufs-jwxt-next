@@ -15,7 +15,7 @@ describe("login page", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "继续" }));
 
-    expect(screen.getByText("请输入学号和统一认证密码。")).toBeInTheDocument();
+    expect(screen.getByText("请输入学号和统一认证密码")).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

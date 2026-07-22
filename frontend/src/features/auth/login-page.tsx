@@ -29,7 +29,7 @@ export function LoginPage() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (username.trim().length === 0 || password.length === 0) {
-      setFieldError("请输入学号和统一认证密码。");
+      setFieldError("请输入学号和统一认证密码");
       return;
     }
     setFieldError(undefined);
@@ -112,10 +112,6 @@ export function LoginPage() {
           )}
         </Button>
       </form>
-
-      <p className="form-footnote">
-        登录过程由学校统一认证系统完成，随后需要手机验证码确认身份。
-      </p>
     </div>
   );
 }

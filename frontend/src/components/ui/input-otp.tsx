@@ -1,5 +1,4 @@
 import { OTPInput, OTPInputContext, type SlotProps } from "input-otp";
-import { Minus } from "lucide-react";
 import {
   type ComponentProps,
   type HTMLAttributes,
@@ -50,7 +49,7 @@ export function InputOTPSlot({
   return (
     <div
       className={cn(
-        "relative flex h-11 w-11 items-center justify-center border-y border-r border-input bg-background text-base font-semibold tabular-nums text-foreground transition-[border-color,box-shadow] duration-200 first:rounded-l-md first:border-l last:rounded-r-md",
+        "relative flex h-11 w-full items-center justify-center rounded-md border border-input bg-background text-lg font-semibold tabular-nums text-foreground transition-[border-color,box-shadow] duration-200",
         isActive && "z-10 border-ring ring-2 ring-ring/25",
         className,
       )}
@@ -62,21 +61,6 @@ export function InputOTPSlot({
           <div className="h-5 w-px animate-caret-blink bg-foreground" />
         </div>
       ) : null}
-    </div>
-  );
-}
-
-export function InputOTPSeparator({
-  className,
-  ...props
-}: HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn("text-muted-foreground", className)}
-      role="separator"
-      {...props}
-    >
-      <Minus aria-hidden="true" className="size-4" />
     </div>
   );
 }

@@ -48,6 +48,7 @@ import {
   filterGrades,
   formatCredits,
   formatSemester,
+  isFailingGrade,
   semestersOf,
   sortGrades,
   type GradeFilter,
@@ -63,8 +64,9 @@ import {
   type GradeDetail,
 } from "../../lib/api";
 import { downloadGradesCsv, downloadGradesExcel } from "../../lib/export";
+import { cn } from "../../lib/utils";
 import { useAuthRedirect } from "../app/app-layout";
-import { useGrades } from "../overview/overview-page";
+import { useGrades } from "../app/use-grades";
 
 function useRefreshCooldown(): [number, (seconds: number) => void] {
   const [remaining, setRemaining] = useState(0);
@@ -351,13 +353,15 @@ export function GradesPage() {
                   />
                   <TableHead>考核</TableHead>
                   <TableHead>属性</TableHead>
-                  <TableHead className="grades-op-head">
+                  <TableHead className="grades-op">
                     <span className="sr-only">操作</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visible.map((grade) => (
+                {visible.map((grade) => {
+                  const failing = isFailingGrade(grade);
+                  return (
                   <TableRow key={grade.detailKey.gradeRecordKey}>
                     <TableCell className="grades-course">
                       <span className="grades-course-name">
@@ -373,10 +377,17 @@ export function GradesPage() {
                     <TableCell className="grades-num">
                       {formatCredits(grade.credits)}
                     </TableCell>
-                    <TableCell className="grades-num grades-score">
+                    <TableCell
+                      className={cn(
+                        "grades-num grades-score",
+                        failing && "grades-fail",
+                      )}
+                    >
                       {grade.score}
                     </TableCell>
-                    <TableCell className="grades-num">
+                    <TableCell
+                      className={cn("grades-num", failing && "grades-fail")}
+                    >
                       {grade.gradePoint.toFixed(1)}
                     </TableCell>
                     <TableCell className="grades-method">
@@ -387,6 +398,9 @@ export function GradesPage() {
                         <Badge>{grade.courseAttribute}</Badge>
                         {grade.courseCategory !== null ? (
                           <Badge variant="outline">{grade.courseCategory}</Badge>
+                        ) : null}
+                        {failing ? (
+                          <Badge variant="destructive">不及格</Badge>
                         ) : null}
                       </span>
                     </TableCell>
@@ -401,13 +415,16 @@ export function GradesPage() {
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
 
           <ul className="grades-cards">
-            {visible.map((grade) => (
+            {visible.map((grade) => {
+              const failing = isFailingGrade(grade);
+              return (
               <li key={grade.detailKey.gradeRecordKey}>
                 <button
                   type="button"
@@ -417,7 +434,15 @@ export function GradesPage() {
                 >
                   <span className="grade-entry-head">
                     <span className="grade-entry-name">{grade.courseName}</span>
-                    <span className="grade-entry-score">{grade.score}</span>
+                    <span
+                      className={cn(
+                        "grade-entry-score",
+                        failing && "grades-fail",
+                      )}
+                    >
+                      <span className="grade-entry-score-label">总评</span>
+                      {grade.score}
+                    </span>
                   </span>
                   <span className="grade-entry-meta">
                     <span>{formatSemester(grade.semester)}</span>
@@ -426,10 +451,14 @@ export function GradesPage() {
                       {formatCredits(grade.credits)} 学分 · 绩点{" "}
                       {grade.gradePoint.toFixed(1)}
                     </span>
+                    {failing ? (
+                      <Badge variant="destructive">不及格</Badge>
+                    ) : null}
                   </span>
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </>
       )}
@@ -459,7 +488,7 @@ function SortableHead({
   return (
     <TableHead
       className={align === "right" ? "grades-num" : undefined}
-      aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : undefined}
+      aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : "none"}
     >
       <button type="button" className="sort-button" onClick={onToggle}>
         {align === "right" ? null : label}
@@ -542,6 +571,32 @@ function GradeDetailDialog({
   );
 }
 
+/**
+ * 成绩组成键名映射：把上游教务系统的字段代码翻译成中文标签。
+ * 上游可能返回中文键（已可读）或拼音缩写代码；已知代码翻译，
+ * 已是中文或未收录的键回退原样显示，绝不比原始更差。
+ */
+const DETAIL_KEY_LABELS: Record<string, string> = {
+  zcj: "总评成绩",
+  zpcj: "总评成绩",
+  pscj: "平时成绩",
+  qzcj: "期中成绩",
+  qmcj: "期末成绩",
+  bkcj: "补考成绩",
+  cxcj: "重修成绩",
+  kscj: "考试成绩",
+  sycj: "实验成绩",
+  kchcj: "课程环节成绩",
+  kclbmc: "课程类别",
+  ksxz: "考试性质",
+  ksxzmc: "考试性质",
+};
+
+/** 单个成绩组成键的展示标签：已知代码译为中文，其余原样返回。 */
+function formatDetailLabel(key: string): string {
+  return DETAIL_KEY_LABELS[key.toLowerCase()] ?? key;
+}
+
 /** 详情对象是上游原样透传的单层 JSON：标量直接展示，嵌套值序列化展示。 */
 function formatDetailValue(value: unknown): string {
   if (value === null) {
@@ -565,7 +620,7 @@ function GradeDetailView({ detail }: { detail: GradeDetail }) {
     <dl className="detail-list">
       {entries.map(([key, value]) => (
         <div key={key} className="detail-row">
-          <dt>{key}</dt>
+          <dt>{formatDetailLabel(key)}</dt>
           <dd>{formatDetailValue(value)}</dd>
         </div>
       ))}

@@ -174,7 +174,7 @@ describe("grades page", () => {
     expect(headerCell).toHaveAttribute("aria-sort", "ascending");
   });
 
-  it("打开成绩组成对话框并原样展示上游字段", async () => {
+  it("打开成绩组成对话框：已知字段代码译为中文，未知键原样展示", async () => {
     const fetchMock = enterGrades({
       detail: { cjxm1: "期末成绩", zcj: "88", kclbmc: null },
     });
@@ -193,9 +193,13 @@ describe("grades page", () => {
     expect(
       within(dialog).getByRole("heading", { name: "综合英语（一）" }),
     ).toBeInTheDocument();
+    // 未收录的键回退原样显示，其值照常呈现
     expect(await within(dialog).findByText("cjxm1")).toBeInTheDocument();
     expect(within(dialog).getByText("期末成绩")).toBeInTheDocument();
-    expect(within(dialog).getByText("zcj")).toBeInTheDocument();
+    // 已知代码翻译为中文标签（zcj → 总评成绩，kclbmc → 课程类别）
+    expect(within(dialog).getByText("总评成绩")).toBeInTheDocument();
+    expect(within(dialog).getByText("课程类别")).toBeInTheDocument();
+    expect(within(dialog).queryByText("zcj")).not.toBeInTheDocument();
     // null 值展示为占位符
     expect(within(dialog).getByText("—")).toBeInTheDocument();
 

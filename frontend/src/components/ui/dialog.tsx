@@ -38,7 +38,7 @@ export function DialogHeader({
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("grid gap-1.5 pr-8 text-left", className)} {...props} />
+    <div className={cn("grid gap-1.5 pr-10 text-left", className)} {...props} />
   );
 }
 
