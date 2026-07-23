@@ -11,6 +11,23 @@ import { earnedCredits } from "./academics";
  * 不得回退到全校统一默认值，也不得展示可能错误的「已达毕业要求」。
  */
 
+/**
+ * 单项通识要求：一个可展示的类别桶及其学分要求。
+ * 一个桶可合并多个上游 courseCategory（categories 命中其一即计入）。
+ */
+export const geRequirementSchema = z
+  .object({
+    /** 展示名，如「人文科学」「社会科学」「艺术审美」。 */
+    label: z.string().min(1),
+    /** 计入本项的上游 courseCategory 值（精确匹配），可合并多个。 */
+    categories: z.array(z.string().min(1)).min(1),
+    /** 本项所需学分。 */
+    creditsRequired: z.number().positive(),
+  })
+  .strict();
+
+export type GeRequirement = z.infer<typeof geRequirementSchema>;
+
 export const majorRuleSchema = z
   .object({
     /** 稳定规则 ID，版本化追踪。 */
@@ -25,13 +42,11 @@ export const majorRuleSchema = z
     enrollmentYears: z.array(z.number().int()).optional(),
     /** 毕业总学分要求。 */
     totalCreditsRequired: z.number().positive(),
-    /** 通识学分要求。 */
-    generalEducationCreditsRequired: z.number().nonnegative(),
     /**
-     * 计入通识学分的课程类别；undefined 表示所有通识类别
-     * （上游 courseCategory 非空）均计入。
+     * 分类别通识学分要求。通识总额即各项之和，不单列总数。
+     * 空数组表示该专业未登记通识分项要求（只展示毕业总学分进度）。
      */
-    generalEducationCategories: z.array(z.string().min(1)).optional(),
+    generalEducation: z.array(geRequirementSchema).default([]),
     /** 规则来源，必须可追溯。 */
     source: z.object({
       title: z.string().min(1),
@@ -85,14 +100,21 @@ export function matchMajorRule(
     : { status: "matched", rule };
 }
 
+export interface GeProgress {
+  label: string;
+  earned: number;
+  required: number;
+  /** 0–1，可超过 1（超出要求）。 */
+  ratio: number;
+}
+
 export interface RuleProgress {
   totalEarned: number;
   totalRequired: number;
   /** 0–1，可超过 1（超出要求）。 */
   totalRatio: number;
-  generalEarned: number;
-  generalRequired: number;
-  generalRatio: number;
+  /** 逐项通识进度，顺序与规则中的 generalEducation 一致。 */
+  generalEducation: GeProgress[];
 }
 
 export function computeRuleProgress(
@@ -100,23 +122,25 @@ export function computeRuleProgress(
   grades: readonly Grade[],
 ): RuleProgress {
   const totalEarned = earnedCredits(grades);
-  const generalEarned = grades
-    .filter(
-      (grade) =>
-        grade.courseCategory !== null &&
-        (rule.generalEducationCategories === undefined ||
-          rule.generalEducationCategories.includes(grade.courseCategory)),
-    )
-    .reduce((sum, grade) => sum + grade.credits, 0);
+  const generalEducation = rule.generalEducation.map((requirement) => {
+    const earned = grades
+      .filter(
+        (grade) =>
+          grade.courseCategory !== null &&
+          requirement.categories.includes(grade.courseCategory),
+      )
+      .reduce((sum, grade) => sum + grade.credits, 0);
+    return {
+      label: requirement.label,
+      earned,
+      required: requirement.creditsRequired,
+      ratio: earned / requirement.creditsRequired,
+    };
+  });
   return {
     totalEarned,
     totalRequired: rule.totalCreditsRequired,
     totalRatio: totalEarned / rule.totalCreditsRequired,
-    generalEarned,
-    generalRequired: rule.generalEducationCreditsRequired,
-    generalRatio:
-      rule.generalEducationCreditsRequired === 0
-        ? 1
-        : generalEarned / rule.generalEducationCreditsRequired,
+    generalEducation,
   };
 }

@@ -11,14 +11,16 @@ export const DialogClose = DialogPrimitive.Close;
 export function DialogContent({
   className,
   children,
+  ref,
   ...props
 }: ComponentProps<typeof DialogPrimitive.Content>) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-overlay bg-foreground/45 animate-overlay-show" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-overlay bg-foreground/45 animate-overlay-show data-[state=closed]:animate-overlay-hide" />
       <DialogPrimitive.Content
+        ref={ref}
         className={cn(
-          "fixed left-1/2 top-1/2 z-dialog grid w-[calc(100vw-2.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border border-border bg-surface p-6 animate-dialog-show focus-visible:outline-none",
+          "fixed left-1/2 top-1/2 z-dialog grid w-[calc(100vw-2.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border border-border bg-surface p-6 animate-dialog-show data-[state=closed]:animate-dialog-hide focus-visible:outline-none",
           className,
         )}
         {...props}

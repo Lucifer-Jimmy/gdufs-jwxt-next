@@ -143,7 +143,7 @@ describe("grades page", () => {
     enterGrades();
 
     await screen.findByRole("heading", { name: "成绩查询" });
-    await openSelect("按学期筛选", "2022–2023 学年第 2 学期");
+    await openSelect("按学期筛选", "2022-2023-2");
 
     const table = screen.getByRole("table");
     expect(within(table).getByText("跨文化交际")).toBeInTheDocument();

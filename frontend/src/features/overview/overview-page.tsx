@@ -18,7 +18,6 @@ import {
   filterGrades,
   formatCredits,
   formatGpa,
-  formatSemester,
   generalEducationCredits,
   semesterTrend,
   weightedGpa,
@@ -122,7 +121,7 @@ export function OverviewPage() {
               <span className="metric-label">本学期绩点</span>
               <span className="metric-value">{formatGpa(semesterGpa)}</span>
               <span className="metric-sub">
-                {semester === null ? "暂无学期记录" : formatSemester(semester)}
+                {semester === null ? "暂无学期记录" : semester}
               </span>
             </div>
             <div className="metric-item">
@@ -154,7 +153,7 @@ export function OverviewPage() {
                 <tbody>
                   {trend.map((point) => (
                     <tr key={point.semester}>
-                      <th scope="row">{point.label}</th>
+                      <th scope="row">{point.semester}</th>
                       <td>{point.gpa.toFixed(2)}</td>
                       <td>{formatCredits(point.credits)}</td>
                       <td>{point.courseCount}</td>
@@ -257,7 +256,7 @@ function TrendTooltip({
   }
   return (
     <div className="trend-tooltip">
-      <p className="trend-tooltip-title">{point.label}</p>
+      <p className="trend-tooltip-title">{point.semester}</p>
       <p>
         平均绩点 <strong>{point.gpa.toFixed(2)}</strong>
       </p>
@@ -284,12 +283,15 @@ function RuleProgressView({
         required={progress.totalRequired}
         ratio={progress.totalRatio}
       />
-      <ProgressRow
-        label="通识学分"
-        earned={progress.generalEarned}
-        required={progress.generalRequired}
-        ratio={progress.generalRatio}
-      />
+      {progress.generalEducation.map((item) => (
+        <ProgressRow
+          key={item.label}
+          label={item.label}
+          earned={item.earned}
+          required={item.required}
+          ratio={item.ratio}
+        />
+      ))}
       <p className="rules-note">
         依据《{match.rule.source.title}》（规则版本 {match.rule.version}
         ，核对于 {match.rule.source.checkedAt}）计算，仅供参考。

@@ -18,7 +18,10 @@ function makeRule(overrides: Partial<MajorRule> = {}): MajorRule {
     aliases: ["计算机科学"],
     version: "2024.1",
     totalCreditsRequired: 160,
-    generalEducationCreditsRequired: 12,
+    generalEducation: [
+      { label: "人文科学", categories: ["人文社科"], creditsRequired: 6 },
+      { label: "自然科学", categories: ["自然科学"], creditsRequired: 4 },
+    ],
     source: {
       title: "测试用培养方案（虚构）",
       checkedAt: "2026-07-01",
@@ -48,6 +51,33 @@ describe("majorRuleSchema", () => {
   it("拒绝未声明字段", () => {
     const extra = { ...makeRule(), comment: "不允许" };
     expect(majorRuleSchema.safeParse(extra).success).toBe(false);
+  });
+
+  it("通识分项要求学分必须为正、类别不可为空", () => {
+    expect(
+      majorRuleSchema.safeParse(
+        makeRule({
+          generalEducation: [
+            { label: "人文科学", categories: ["人文社科"], creditsRequired: 0 },
+          ],
+        }),
+      ).success,
+    ).toBe(false);
+    expect(
+      majorRuleSchema.safeParse(
+        makeRule({
+          generalEducation: [
+            { label: "人文科学", categories: [], creditsRequired: 2 },
+          ],
+        }),
+      ).success,
+    ).toBe(false);
+  });
+
+  it("允许无通识分项要求（空数组）", () => {
+    expect(
+      majorRuleSchema.safeParse(makeRule({ generalEducation: [] })).success,
+    ).toBe(true);
   });
 });
 
@@ -107,7 +137,7 @@ describe("matchMajorRule", () => {
 });
 
 describe("computeRuleProgress", () => {
-  it("汇总总学分与通识学分进度", () => {
+  it("汇总毕业总学分进度", () => {
     const rule = makeRule();
     const grades = [
       makeGrade({ credits: 100 }),
@@ -117,23 +147,44 @@ describe("computeRuleProgress", () => {
     const progress = computeRuleProgress(rule, grades);
     expect(progress.totalEarned).toBe(164);
     expect(progress.totalRatio).toBeCloseTo(164 / 160);
-    expect(progress.generalEarned).toBe(64);
-    expect(progress.generalRatio).toBeCloseTo(64 / 12);
   });
 
-  it("限定通识类别时只统计登记的类别", () => {
-    const rule = makeRule({ generalEducationCategories: ["人文社科"] });
+  it("逐项统计通识学分，只计入各桶登记的类别", () => {
+    const rule = makeRule(); // 人文科学←人文社科 需 6；自然科学←自然科学 需 4
     const grades = [
       makeGrade({ credits: 2, courseCategory: "人文社科" }),
       makeGrade({ credits: 3, courseCategory: "自然科学" }),
-      makeGrade({ credits: 5 }),
+      makeGrade({ credits: 5, courseCategory: "外语" }), // 不属任何桶
+      makeGrade({ credits: 5 }), // 无类别
     ];
-    expect(computeRuleProgress(rule, grades).generalEarned).toBe(2);
+    expect(computeRuleProgress(rule, grades).generalEducation).toEqual([
+      { label: "人文科学", earned: 2, required: 6, ratio: 2 / 6 },
+      { label: "自然科学", earned: 3, required: 4, ratio: 3 / 4 },
+    ]);
   });
 
-  it("通识要求为 0 时进度视为已满", () => {
-    const rule = makeRule({ generalEducationCreditsRequired: 0 });
-    expect(computeRuleProgress(rule, []).generalRatio).toBe(1);
+  it("一个桶可合并多个上游类别", () => {
+    const rule = makeRule({
+      generalEducation: [
+        {
+          label: "人文与艺术",
+          categories: ["人文社科", "艺术审美"],
+          creditsRequired: 4,
+        },
+      ],
+    });
+    const grades = [
+      makeGrade({ credits: 2, courseCategory: "人文社科" }),
+      makeGrade({ credits: 1, courseCategory: "艺术审美" }),
+    ];
+    expect(computeRuleProgress(rule, grades).generalEducation[0]?.earned).toBe(
+      3,
+    );
+  });
+
+  it("无通识分项要求时通识进度为空", () => {
+    const rule = makeRule({ generalEducation: [] });
+    expect(computeRuleProgress(rule, []).generalEducation).toEqual([]);
   });
 });
 

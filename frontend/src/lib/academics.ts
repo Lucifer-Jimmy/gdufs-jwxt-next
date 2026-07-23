@@ -10,7 +10,6 @@ import type { Grade } from "./api";
 
 export interface SemesterTrendPoint {
   semester: string;
-  label: string;
   shortLabel: string;
   gpa: number;
   credits: number;
@@ -84,15 +83,6 @@ export function compareSemesters(a: string, b: string): number {
   return a.localeCompare(b, "zh-Hans-CN");
 }
 
-/** 「2023-2024-1」→「2023–2024 学年第 1 学期」；格式异常原样返回。 */
-export function formatSemester(semester: string): string {
-  const match = SEMESTER_PATTERN.exec(semester);
-  if (!match) {
-    return semester;
-  }
-  return `${match[1]}–${match[2]} 学年第 ${match[3]} 学期`;
-}
-
 /** 「2023-2024-1」→「23-24-1」，用于趋势图横轴短标签。 */
 export function formatSemesterShort(semester: string): string {
   const match = SEMESTER_PATTERN.exec(semester);
@@ -125,7 +115,6 @@ export function semesterTrend(
       );
       return {
         semester,
-        label: formatSemester(semester),
         shortLabel: formatSemesterShort(semester),
         gpa: round2(weightedGpa(semesterGrades) ?? 0),
         credits: earnedCredits(semesterGrades),

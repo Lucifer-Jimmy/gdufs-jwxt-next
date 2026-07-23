@@ -1,5 +1,4 @@
 import type { Grade } from "./api";
-import { formatSemester } from "./academics";
 
 /**
  * 浏览器端导出：全部在当前页面内存完成，不上传或暂存任何数据。
@@ -25,7 +24,7 @@ export function gradesToRows(grades: readonly Grade[]): ExportCell[][] {
   return grades.map((grade) => [
     grade.courseCode,
     grade.courseName,
-    formatSemester(grade.semester),
+    grade.semester,
     grade.credits,
     grade.score,
     grade.numericScore,

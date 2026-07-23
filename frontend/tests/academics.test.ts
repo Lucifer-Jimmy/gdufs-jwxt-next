@@ -8,7 +8,6 @@ import {
   filterGrades,
   formatCredits,
   formatGpa,
-  formatSemester,
   formatSemesterShort,
   generalEducationCredits,
   semesterTrend,
@@ -79,10 +78,8 @@ describe("学期工具", () => {
     expect(currentSemester([])).toBeNull();
   });
 
-  it("学期标签格式化", () => {
-    expect(formatSemester("2023-2024-1")).toBe("2023–2024 学年第 1 学期");
+  it("学期短标签格式化（趋势图横轴用）", () => {
     expect(formatSemesterShort("2023-2024-1")).toBe("23-24-1");
-    expect(formatSemester("未知学期")).toBe("未知学期");
     expect(formatSemesterShort("未知学期")).toBe("未知学期");
   });
 });
@@ -102,7 +99,7 @@ describe("semesterTrend", () => {
     expect(trend[0]?.gpa).toBe(3.2);
     expect(trend[0]?.courseCount).toBe(2);
     expect(trend[0]?.credits).toBe(4);
-    expect(trend[0]?.label).toBe("2022–2023 学年第 2 学期");
+    expect(trend[0]?.shortLabel).toBe("22-23-2");
     expect(trend[1]?.gpa).toBe(4);
   });
 });

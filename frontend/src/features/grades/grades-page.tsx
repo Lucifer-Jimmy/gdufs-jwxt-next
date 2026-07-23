@@ -9,7 +9,7 @@ import {
   LoaderCircle,
   RefreshCw,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Alert } from "../../components/ui/alert";
 import { Badge } from "../../components/ui/badge";
@@ -47,7 +47,6 @@ import {
   courseAttributesOf,
   filterGrades,
   formatCredits,
-  formatSemester,
   isFailingGrade,
   semestersOf,
   sortGrades,
@@ -220,7 +219,7 @@ export function GradesPage() {
               <SelectItem value="all">全部学期</SelectItem>
               {semesters.map((semester) => (
                 <SelectItem key={semester} value={semester}>
-                  {formatSemester(semester)}
+                  {semester}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -372,7 +371,7 @@ export function GradesPage() {
                       </span>
                     </TableCell>
                     <TableCell className="grades-semester">
-                      {formatSemester(grade.semester)}
+                      {grade.semester}
                     </TableCell>
                     <TableCell className="grades-num">
                       {formatCredits(grade.credits)}
@@ -445,7 +444,7 @@ export function GradesPage() {
                     </span>
                   </span>
                   <span className="grade-entry-meta">
-                    <span>{formatSemester(grade.semester)}</span>
+                    <span>{grade.semester}</span>
                     <span>{grade.courseAttribute}</span>
                     <span>
                       {formatCredits(grade.credits)} 学分 · 绩点{" "}
@@ -502,6 +501,71 @@ function SortableHead({
   );
 }
 
+/**
+ * 详情弹窗内容加载完成、骨架切换为正文时高度会突变（实测 ~67px），
+ * 因弹窗垂直居中，突变会让整框瞬间上跳造成卡顿。返回一个 callback ref：
+ * Radix 挂载内容节点时即接上 ResizeObserver，监听内容盒高度，在换入时对
+ * 容器高度做一次性补间，让盒子平滑长高并重新居中。用 callback ref 而非
+ * useEffect 是因为 Radix 延迟挂载浮层，effect 首次运行时节点尚不存在。
+ * borderBoxSize 不受入场缩放动画影响，故不会误触发；尊重
+ * prefers-reduced-motion，动画只作用于这一浮层。
+ */
+function useDialogHeightTransition(): (node: HTMLDivElement | null) => void {
+  const detach = useRef<(() => void) | null>(null);
+  return useCallback((el: HTMLDivElement | null) => {
+    detach.current?.();
+    detach.current = null;
+    if (!el || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const reduceMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let prevHeight: number | null = null;
+    let animating = false;
+    let animation: Animation | null = null;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) {
+        return;
+      }
+      const next = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
+      const prev = prevHeight;
+      prevHeight = next;
+      // 首次观测只建立基线；自身补间引起的尺寸变化直接忽略，避免自激。
+      if (prev === null || animating || Math.abs(next - prev) < 1) {
+        return;
+      }
+      if (reduceMotion || typeof el.animate !== "function") {
+        return;
+      }
+      animating = true;
+      const previousOverflow = el.style.overflow;
+      el.style.overflow = "hidden";
+      // FLIP：先把高度同步钉在起点，避免自然高度先绘制一帧造成回跳闪烁。
+      el.style.height = `${prev}px`;
+      animation = el.animate(
+        [{ height: `${prev}px` }, { height: `${next}px` }],
+        { duration: 200, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+      );
+      const restore = () => {
+        el.style.overflow = previousOverflow;
+        el.style.height = "";
+        animating = false;
+      };
+      animation.addEventListener("finish", restore);
+      animation.addEventListener("cancel", restore);
+    });
+    observer.observe(el);
+    detach.current = () => {
+      observer.disconnect();
+      animation?.cancel();
+    };
+  }, []);
+}
+
 function GradeDetailDialog({
   grade,
   onClose,
@@ -509,6 +573,8 @@ function GradeDetailDialog({
   grade: Grade | null;
   onClose: () => void;
 }) {
+  // 骨架换入正文时内容盒高度变化，由 callback ref 上的 ResizeObserver 捕捉并补间。
+  const contentRef = useDialogHeightTransition();
   const detailQuery = useQuery({
     queryKey: ["grade-detail", grade?.detailKey.gradeRecordKey],
     queryFn: () => {
@@ -526,14 +592,13 @@ function GradeDetailDialog({
 
   return (
     <Dialog open={grade !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent aria-describedby={undefined}>
+      <DialogContent ref={contentRef} aria-describedby={undefined}>
         {grade ? (
           <>
             <DialogHeader>
               <DialogTitle>{grade.courseName}</DialogTitle>
               <DialogDescription>
-                {formatSemester(grade.semester)} · {grade.courseCode} · 总评{" "}
-                {grade.score}
+                {grade.semester} · {grade.courseCode} · 总评 {grade.score}
               </DialogDescription>
             </DialogHeader>
             {detailQuery.isPending ? (
@@ -544,7 +609,7 @@ function GradeDetailDialog({
                 <Skeleton className="h-5 w-3/5" />
               </div>
             ) : detailQuery.isError ? (
-              <div className="detail-error">
+              <div className="detail-error animate-detail-in">
                 <Alert>
                   <p>
                     {detailQuery.error instanceof ApiError
@@ -614,10 +679,14 @@ function formatDetailValue(value: unknown): string {
 function GradeDetailView({ detail }: { detail: GradeDetail }) {
   const entries = Object.entries(detail);
   if (entries.length === 0) {
-    return <p className="detail-empty">教务系统未返回成绩组成内容。</p>;
+    return (
+      <p className="detail-empty animate-detail-in">
+        教务系统未返回成绩组成内容。
+      </p>
+    );
   }
   return (
-    <dl className="detail-list">
+    <dl className="detail-list animate-detail-in">
       {entries.map(([key, value]) => (
         <div key={key} className="detail-row">
           <dt>{formatDetailLabel(key)}</dt>
